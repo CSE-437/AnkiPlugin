@@ -1,23 +1,57 @@
-#import main window object (mw) from ankiqt
+from urllib2 import Request, urlopen, URLError
+from pprint import pprint
+import json
+import requests
+
+# import the main window object (mw) from ankiqt
 from aqt import mw
-#import show info
+# import the "show info" tool from utils.py
 from aqt.utils import showInfo
-#import all of the Qt GUI library
+# import all of the Qt GUI library
 from aqt.qt import *
 
-#We're going to add a menu item below. First we want to create a function
-#to be called when the menu item is activated.
+#myurl = 'http://localhost:5000/api/user/user.json'
+myurl = 'http://jsonplaceholder.typicode.com'
 
-def testFunction():
-    # get the number of cards in the current collections, whith is stored in
-    # the main window
-    cardCount = mw.col.cardCount()
-    #show a message box
-    showInfo("Card count: %d" %cardCount)
+def userApiTest():
+  request = Request(myurl + '/users')
 
-#create a new menu item, "test"
-action = QAction("test", mw)
-#set action to call test function when it is clicked.
-mw.connect(action, SIGNAL("triggered()"), testFunction)
-#and add it to the tools menu
+  try:
+    response = urlopen(request)
+    user = json.loads(response.read())
+    pprint(user)
+  except URLError, e:
+    print 'sadness shit sucks', e
+
+  showInfo("User: %s" % user[0]['name'])
+  createSettings()
+
+ankiHubURL = 'localhost:3000'
+def sendDecks(decks):
+#crashes
+  requests.post(myurl+'/api/deck', data=json.dumps(decks))
+
+def createSettings():
+  mw.settings = QWidget()
+  mw.settings.resize(560, 320)
+  mw.settings.setWindowTitle("Hello World")
+  mw.settings.show()
+
+decks = {}
+
+def uploadDecks():
+    #ids = mw.col.db.all("select did from cards")
+    #showInfo("IDS: %s" % ids[1:10])
+    ids = mw.col.findCards("")
+    for id in ids[1:3]:
+        if not id in decks:
+            decks[id] = []
+        decks[id].append(mw.col.getCard(id))
+    sendDecks(decks)
+    #showInfo(str([method for method in dir(mw) if callable(getattr(mw, method))]))
+
+
+action = QAction('user', mw)
+mw.connect(action, SIGNAL('triggered()'), uploadDecks)
 mw.form.menuTools.addAction(action)
+#userApiTest()
