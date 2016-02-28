@@ -9,6 +9,7 @@ for path in paths_file:
 anki_exe = paths[0]
 watched_file = paths[1]
 addon_path = paths[2]
+kill_cmd = paths[3]
 
 os.startfile(anki_exe)
 
@@ -18,7 +19,7 @@ while 1:
 	new_t = os.stat(watched_file)[8]
 	if old_t != new_t:
 		copy(watched_file, addon_path)
-		os.system("TASKKILL /F /IM anki.exe")
+		os.system(kill_cmd)
 		os.startfile(anki_exe)
 
 	time.sleep(1);
