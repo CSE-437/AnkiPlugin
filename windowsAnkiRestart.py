@@ -1,10 +1,16 @@
 import os, time, sys, time
 from shutil import copy
 
-watched_file = sys.argv[1]
-addon_path = sys.argv[2]
+paths_file = open('ankiRestartPaths.txt')
+paths = []
+for path in paths_file:
+	paths.append(path.replace("\n", ""))
 
-os.startfile(r'C:\Program Files (x86)\Anki\anki.exe')
+anki_exe = paths[0]
+watched_file = paths[1]
+addon_path = paths[2]
+
+os.startfile(anki_exe)
 
 new_t = old_t = 0
 while 1:
@@ -13,6 +19,6 @@ while 1:
 	if old_t != new_t:
 		copy(watched_file, addon_path)
 		os.system("TASKKILL /F /IM anki.exe")
-		os.startfile(r'C:\Program Files (x86)\Anki\anki.exe')
+		os.startfile(anki_exe)
 
 	time.sleep(1);
