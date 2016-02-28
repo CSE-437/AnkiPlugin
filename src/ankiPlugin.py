@@ -24,7 +24,7 @@ class AnkiHub:
   Initial entry point of function. Should be the only function called by global.
   '''
   def initialize(self):
-    #TO-DO: Create a destructor to clear data when the QWidget is closed. Currently hacking by manually clearing instance variables.
+    # TODO: Create a destructor to clear data when the QWidget is closed. Currently hacking by manually clearing instance variables.
     self.responseJson = []
     self.deckCol = []
   
@@ -33,6 +33,16 @@ class AnkiHub:
     #showInfo(str(self.deckCol))
     #showInfo(deckJson)
     request = Request(self.myurl + '/users')
+
+    #
+    # Sync with upstream changes
+    #
+    # Request for JSON of decks user is subscribed to.
+    # Figure out what (if anything) has changed.
+    # New cards: create manually; only worry about front/back data (don't care about tags, multimedia for now)
+    # Removed cards: simple delete
+    # Modified cards = removed + new
+    #
     
     try:
       response = urlopen(request)
@@ -98,13 +108,16 @@ class AnkiHub:
   '''    
   def syncDeck(self, deck):
     def syncDeckAction():
-      showInfo(json.dumps(deck))
+    	#
+    	# POST to AnkiHub a JSON of the deck
+    	#
+    	showInfo(json.dumps(deck))
     return syncDeckAction
     
   def redirect(self):
     def redirectAction():
       showInfo('Redirecting to AnkiHub')
-      webbrowser.open('http://corgiorgy.com/')
+      webbrowser.open('http://corgiorgy.com/') # FIXME obviously change at some point
     return redirectAction
     
   '''
@@ -147,7 +160,7 @@ class AnkiHub:
           deckDict[parents[-1]['name']] = {}
           self.initializeDeckValues(deckDict[parents[-1]['name']], parents[-1])
         
-        #TO-DO: Make this not a shitty linear time search. You can do this by making the lists into sets and creating a hashable object
+        # TODO: Make this not a shitty linear time search. You can do this by making the lists into sets and creating a hashable object
         #       that consists of a string (the name) and a dictionary and have it hash on the string.
         #       pls do this aarthi ty.
         if not any(child['name'] == deck['name'] for child in deckDict[parents[-1]['name']]['children']):
@@ -157,7 +170,7 @@ class AnkiHub:
     #deckDict['desc'] = deck['desc']
     deckDict['name'] = deck['name']
     #deckDict['owner'] = 42  #TO-DO: change this to actual owner
-    #deckDict['session-token'] = 'chocolate rain'  #TO-DO: replace with actual session token
+    #deckDict['session-token'] = 'chocolate rain'  # TODO: replace with actual session token
     deckDict['children'] = []
     deckDict['cards'] = []
     self.populateCards(deck, deckDict['cards'])
