@@ -31,7 +31,7 @@ class AnkiHub:
     self.processDecks()
     deckJson = json.dumps(self.deckCol)
     #showInfo(str(self.deckCol))
-    showInfo(deckJson)
+    #showInfo(deckJson)
     request = Request(self.myurl + '/users')
     
     try:
@@ -49,51 +49,56 @@ class AnkiHub:
   '''
   def createSettings(self):
     mw.settings = QWidget()
-    mw.settings.resize(560, 320)
+    mw.settings.resize(1024, 520)
     mw.settings.setWindowTitle("AnkiHub")
     
     mw.settings.userLabel = QLabel(self.responseJson[0]['name'] + ' - Decks', mw.settings)
     mw.settings.userLabel.move(64, 32)
     
-    self.createTable()
+    #self.createTable()
+    self.createTree()
     
     mw.settings.redirect = QPushButton('Go to AnkiHub', mw.settings)
     mw.settings.redirect.clicked.connect(self.redirect())
-    mw.settings.redirect.move(200, 265)
+    mw.settings.redirect.move(440, 460)
     
     mw.settings.show()
-    
-  def createTable(self):
-    mw.settings.deckTable = QTableWidget(mw.settings)
-    deckTable = mw.settings.deckTable
-    deckTable.resize(432, 192)
-    deckTable.move(64, 64)
-    deckTable.setRowCount(len(self.responseJson))
-    deckTable.setColumnCount(2)
-    deckTable.verticalHeader().setVisible(False)
-    deckTable.horizontalHeader().setVisible(False)
-    deckTable.horizontalHeader().setResizeMode(0, QHeaderView.Stretch)
-    
-    for i in range(len(self.responseJson)):
-      pWidget = QWidget()
-      pButton = QPushButton()
-      pButton.setText('Sync')
-      pButton.clicked.connect(self.syncDeck(i))
-      pLayout = QHBoxLayout(pWidget)
-      pLayout.addWidget(pButton)
-      pLayout.setAlignment(Qt.AlignCenter)
-      pLayout.setContentsMargins(0,0,0,0)
-      pWidget.setLayout(pLayout)
       
-      deckTable.setItem(i, 0, QTableWidgetItem(self.responseJson[i]['name']))
-      deckTable.setCellWidget(i, 1, pWidget)
+  def createTree(self):
+    mw.settings.deckTree = QTreeWidget(mw.settings)
+    deckTree = mw.settings.deckTree
+    deckTree.resize(896, 384)
+    deckTree.move(64, 64)
+    
+    header = QTreeWidgetItem(['Decks', ''])
+    deckTree.setHeaderItem(header)
+    deckTree.setColumnWidth(0,750)
+    
+    for rootDeck in self.deckCol:
+      treeNode = QTreeWidgetItem(deckTree)
+      treeNode.setText(0, rootDeck['name'])
+      treeButton = QPushButton('Sync')
+      treeButton.clicked.connect(self.syncDeck(rootDeck))
+      deckTree.setItemWidget(treeNode, 1, treeButton)
+      
+      self.createTreeChildren(deckTree, rootDeck, treeNode)
+
+  def createTreeChildren(self, deckTree, parentDeck, parentNode):
+    for child in parentDeck['children']:
+      treeNode = QTreeWidgetItem(parentNode)
+      treeNode.setText(0, child['name'])
+      treeButton = QPushButton('Sync')
+      treeButton.clicked.connect(self.syncDeck(child))
+      deckTree.setItemWidget(treeNode, 1, treeButton)
+      
+      self.createTreeChildren(deckTree, child, treeNode)
   
   '''
   Callback functions and API calls.
-  '''
-  def syncDeck(self, index):
+  '''    
+  def syncDeck(self, deck):
     def syncDeckAction():
-      showInfo('User: %s' % self.responseJson[index]['name'])
+      showInfo(json.dumps(deck))
     return syncDeckAction
     
   def redirect(self):
@@ -143,18 +148,10 @@ class AnkiHub:
           self.initializeDeckValues(deckDict[parents[-1]['name']], parents[-1])
         
         #TO-DO: Make this not a shitty linear time search. You can do this by making the lists into sets and creating a hashable object
-        #       that consists of a string (the name) and a dictionary and have it hash on the string. Also do this on the other search below.
+        #       that consists of a string (the name) and a dictionary and have it hash on the string.
         #       pls do this aarthi ty.
         if not any(child['name'] == deck['name'] for child in deckDict[parents[-1]['name']]['children']):
           deckDict[parents[-1]['name']]['children'].append(deck)
-      
-      for i in range(1, len(parents)+1):
-        if parents[-i]['name'] not in deckDict:
-          deckDict[parents[-i]['name']] = {}
-          self.initializeDeckValues(deckDict[parents[-i]['name']], parents[-i])
-        
-        if not any(child['name'] == deck['name'] for child in deckDict[parents[-i]['name']]['children']):
-          deckDict[parents[-i]['name']]['children'].append(deckDict[parents[-(i-1)]['name']])
   
   def initializeDeckValues(self, deckDict, deck):
     #deckDict['desc'] = deck['desc']
