@@ -43,14 +43,48 @@ class AnkiHub:
     
     self.responseJson = user
     self.createSettings()
+    self.createLoginWindow()
     
   '''
   GUI setup methods. Creates the QT widget that holds all AnkiHub functionality.
   '''
+  
+  '''
+  Aarthi functions - Creates the login window and retrieves decks by username.
+  '''
+  def createLoginWindow(self):
+    mw.login = QWidget()
+    mw.login.resize(500, 250);
+    mw.login.setWindowTitle("AnkiHub Login")
+    
+    mw.login.instructions = QLabel("Please input your username and password.", mw.login)
+    mw.login.instructions.move(30, 30)
+    
+    mw.login.usernameLabel = QLabel("Username: ", mw.login)
+    mw.login.usernameLabel.move(30, 100)
+    mw.login.username = QLineEdit(mw.login)
+    mw.login.username.resize(300,30)
+    mw.login.username.move(150, 100)
+    
+    mw.login.passwordLabel = QLabel("Password: ", mw.login)
+    mw.login.passwordLabel.move(30, 150)
+    mw.login.password = QLineEdit(mw.login)
+    mw.login.password.resize(300,30)
+    mw.login.password.move(150, 150)
+    
+    mw.login.submit = QPushButton('Login', mw.login)
+    mw.login.submit.move(200,200)
+    mw.login.submit.clicked.connect(self.sendLoginInfo())
+    
+    mw.login.show()
+	
+  '''
+  Zay functions - Creates the deck settings window and allows uploading.
+  '''
   def createSettings(self):
     mw.settings = QWidget()
     mw.settings.resize(1024, 520)
-    mw.settings.setWindowTitle("AnkiHub")
+    mw.settings.setWindowTitle("AnkiHub Settings")
     
     mw.settings.userLabel = QLabel(self.responseJson[0]['name'] + ' - Decks', mw.settings)
     mw.settings.userLabel.move(64, 32)
@@ -96,6 +130,11 @@ class AnkiHub:
   '''
   Callback functions and API calls.
   '''    
+  def sendLoginInfo(self):
+    def sendLoginInfoAction():
+      showInfo("Hello " + mw.login.username.text())
+    return sendLoginInfoAction
+
   def syncDeck(self, deck):
     def syncDeckAction():
       showInfo(json.dumps(deck))
