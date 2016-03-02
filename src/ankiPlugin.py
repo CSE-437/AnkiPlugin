@@ -26,23 +26,60 @@ class AnkiHub:
     self.username = ''
     self.deckCol = []
   
-    self.login()
+    #self.login()
     self.processDecks()
 
-    self.createSettings()
+    #self.createSettings()
+    self.createLoginWindow()
     
   '''
   GUI setup methods. Creates the QT widget that holds all AnkiHub functionality.
   '''
+
+  '''
+  Aarthi functions - Creates the login window and retrieves decks by username.
+  '''
+  def createLoginWindow(self):
+    mw.login = QWidget()
+    mw.login.resize(500, 250);
+    mw.login.setWindowTitle('AnkiHub Login')
+    
+    mw.login.instructions = QLabel('Please input your username and password.', mw.login)
+    mw.login.instructions.move(30, 30)
+    
+    mw.login.usernameLabel = QLabel('Username:', mw.login)
+    mw.login.usernameLabel.move(30, 100)
+    mw.login.username = QLineEdit(mw.login)
+    mw.login.username.resize(300,30)
+    mw.login.username.move(150, 100)
+    
+    mw.login.passwordLabel = QLabel('Password:', mw.login)
+    mw.login.passwordLabel.move(30, 150)
+    mw.login.password = QLineEdit(mw.login)
+    mw.login.password.resize(300,30)
+    mw.login.password.move(150, 150)
+    
+    mw.login.signup = QPushButton('Register', mw.login)
+    mw.login.signup.move(100,200)
+    mw.login.signup.clicked.connect(self.connect('signup/'))
+    
+    mw.login.submit = QPushButton('Login', mw.login)
+    mw.login.submit.move(300,200)
+    mw.login.submit.clicked.connect(self.connect('login/'))
+    
+    mw.login.show()
+	
+  '''
+  Zay functions - Creates the deck settings window and allows uploading.
+  '''
   def createSettings(self):
     mw.settings = QWidget()
     mw.settings.resize(1024, 520)
-    mw.settings.setWindowTitle("AnkiHub")
+    mw.settings.setWindowTitle('AnkiHub Settings')
     
     mw.settings.userLabel = QLabel(self.username + ' - Decks', mw.settings)
     mw.settings.userLabel.move(64, 32)
     
-    #self.createTable()
     self.createTree()
     
     mw.settings.redirect = QPushButton('Go to AnkiHub', mw.settings)
@@ -104,19 +141,92 @@ class AnkiHub:
       webbrowser.open(self.url)
     return redirectAction
     
-  def login(self):
-    loginJson = {'username' : 'fluffluff', 'password' : 'password'}
-    requestURL = self.url + '/api/users/login/'
-    req = Request(requestURL, json.dumps(loginJson), {'Content-Type' : 'application/json'})
-    
+  def connect(self, endpoint):
+    def connectAction():
+      self.username = mw.login.username.text()
+      password = mw.login.password.text()
+      loginJson = {'username' : self.username, 'password' : password}
+      
+      # Sends POST request for login or signup
+      requestURL = self.url + '/api/users/' + endpoint
+      req = Request(requestURL, json.dumps(loginJson), {'Content-Type' : 'application/json'})
+        
+      try:
+        response = urlopen(req)
+        jsonResponse = json.loads(response.read())
+        mw.login.close()
+        showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
+
+        # Uncomment next line to add the hardcoded test deck  
+        #self.addTestDeck()
+        
+        fakeSubs = ["superaarthi:5", "superaarthi:6"]   # TODO: get actual subscription array
+        self.getSubscribeDecks(fakeSubs)
+        self.createSettings()
+      except HTTPError, e:
+        showInfo(str('Login Error: %d' % e.code))
+      except URLError, e:
+        showInfo(str(e.args))
+    return connectAction 
+      
+  def addTestDeck(self):
+    # Edit this to add different decks
+    testJson = {
+        "did":7,
+        "desc": "Aarthi's dogology deck",
+        "name": "Dogology",
+        "keywords": "key",
+        "ispublic": True,
+        "newCards": [
+          {
+            "cid": 1,
+            "did": 25,
+            "front": "Who's the bestest doggy?",
+            "back": "<span>Blaze!</span>",
+            "tags": [],
+            "notes": [],
+            "keywords": "word",
+            "owner": self.username
+          }
+        ],
+        "owner":self.username,
+        "children":[],
+        "cids":[],
+        "subscribers":[]
+    }
+
+    requestURL = self.url + '/api/decks/'
+    req = Request(requestURL, json.dumps(testJson), {'Content-Type' : 'application/json'})
+      
     try:
       response = urlopen(req)
       jsonResponse = json.loads(response.read())
-      self.username = jsonResponse['user']['username']
+      showInfo('Success! Result is ' + str(jsonResponse))
+      self.createSettings()
     except HTTPError, e:
-      showInfo(str('Login Error: %d' % e.code))
+      showInfo(str('Deck Upload Error: %d - %s' % e.code, str(json.loads(e.read()))))
     except URLError, e:
       showInfo(str(e.args))
+      
+  def getSubscribeDecks(self, subs):
+    for sub in subs:    #sub = "superaarthi:5" and "superaarthi:6"
+      requestURL = self.url + '/api/decks?'
+      
+      #TODO: do this in a not hardcoded way
+      filter = 'owner=superaarthi&user=superaarthi&gid=' + sub
+      fullUrl = requestURL + filter
+      
+      try:
+        response = urlopen(fullUrl)
+        jsonResponse = json.loads(response.read())
+        
+        # Uncomment this line to see data in retrieved deck
+        #showInfo('Success! Result is ' + str(jsonResponse[0]))
+        self.deckCol.append(jsonResponse[0])    # Adds retrieved deck to internal AnkiHub Deck Collection
+      except HTTPError, e:
+        showInfo(str('Subscription Download Error: %d - %s' % e.code, str(json.loads(e.read()))))
+      except URLError, e:
+        showInfo(str(e.args))
     
   '''
   Algorithms to serialize JSONs.
@@ -147,7 +257,7 @@ class AnkiHub:
   
   def initializeDeckValues(self, deckDict, deck):
     deckDict['did'] = deck['id']
-    deckDict['description'] = deck['desc']
+    deckDict['desc'] = deck['desc']
     deckDict['name'] = deck['name']
     deckDict['keywords'] = ''
     deckDict['ispublic'] = True
