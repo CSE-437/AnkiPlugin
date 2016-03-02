@@ -1,8 +1,9 @@
 from AnkiHubLibs import webbrowser
 
-from urllib2 import Request, urlopen, URLError
+from urllib2 import Request, urlopen, URLError, HTTPError
 from pprint import pprint
 import json
+import urllib
 
 # import the main window object (mw) from ankiqt
 from aqt import mw
@@ -13,11 +14,8 @@ from aqt.qt import *
 
 class AnkiHub:
 
-  #myurl = 'http://localhost:5000/api/user/user.json'
-  myurl = 'http://jsonplaceholder.typicode.com'
-  ankiHubURL = 'localhost:3000'
-
-  reponseJson = []
+  url = 'http://ankihub.herokuapp.com'
+  username = ''
   deckCol = []
 
   '''
@@ -25,23 +23,12 @@ class AnkiHub:
   '''
   def initialize(self):
     #TO-DO: Create a destructor to clear data when the QWidget is closed. Currently hacking by manually clearing instance variables.
-    self.responseJson = []
+    self.username = ''
     self.deckCol = []
   
+    self.login()
     self.processDecks()
-    deckJson = json.dumps(self.deckCol)
-    #showInfo(str(self.deckCol))
-    #showInfo(deckJson)
-    request = Request(self.myurl + '/users')
-    
-    try:
-      response = urlopen(request)
-      user = json.loads(response.read())
-      pprint(user)
-    except URLError, e:
-      print 'sadness shit sucks', e
-    
-    self.responseJson = user
+
     self.createSettings()
     
   '''
@@ -52,7 +39,7 @@ class AnkiHub:
     mw.settings.resize(1024, 520)
     mw.settings.setWindowTitle("AnkiHub")
     
-    mw.settings.userLabel = QLabel(self.responseJson[0]['name'] + ' - Decks', mw.settings)
+    mw.settings.userLabel = QLabel(self.username + ' - Decks', mw.settings)
     mw.settings.userLabel.move(64, 32)
     
     #self.createTable()
@@ -98,33 +85,38 @@ class AnkiHub:
   '''    
   def syncDeck(self, deck):
     def syncDeckAction():
-      showInfo(json.dumps(deck))
+      showInfo(str(deck))
+      requestURL = self.url + '/api/decks/'
+      req = Request(requestURL, json.dumps(deck), {'Content-Type' : 'application/json'})
+      
+      try:
+        response = urlopen(req)
+        showInfo(response.read())
+      except HTTPError, e:
+        showInfo(str('Sync Error: %d' % e.code))
+      except URLError, e:
+        showInfo(str(e.args))
     return syncDeckAction
     
   def redirect(self):
     def redirectAction():
       showInfo('Redirecting to AnkiHub')
-      webbrowser.open('http://corgiorgy.com/')
+      webbrowser.open(self.url)
     return redirectAction
     
-  '''
-  David functions.
-  '''
-  def sendDecks(self, decks):
-    #crashes
-    #requests.post(myurl+'/api/deck', data=json.dumps(decks))
-    print('blah')
-  
-  def uploadDecks(self):
-    #ids = mw.col.db.all("select did from cards")
-    #showInfo("IDS: %s" % ids[1:10])
-    ids = mw.col.findCards("")
-    for id in ids[1:3]:
-        if not id in self.decks:
-            decks[id] = []
-        self.decks[id].append(mw.col.getCard(id))
-    self.sendDecks(self.decks)
-    #showInfo(str([method for method in dir(mw) if callable(getattr(mw, method))]))
+  def login(self):
+    loginJson = {'username' : 'fluffluff', 'password' : 'password'}
+    requestURL = self.url + '/api/users/login/'
+    req = Request(requestURL, json.dumps(loginJson), {'Content-Type' : 'application/json'})
+    
+    try:
+      response = urlopen(req)
+      jsonResponse = json.loads(response.read())
+      self.username = jsonResponse['user']['username']
+    except HTTPError, e:
+      showInfo(str('Login Error: %d' % e.code))
+    except URLError, e:
+      showInfo(str(e.args))
     
   '''
   Algorithms to serialize JSONs.
@@ -154,25 +146,27 @@ class AnkiHub:
           deckDict[parents[-1]['name']]['children'].append(deck)
   
   def initializeDeckValues(self, deckDict, deck):
-    #deckDict['desc'] = deck['desc']
+    deckDict['did'] = deck['id']
+    deckDict['description'] = deck['desc']
     deckDict['name'] = deck['name']
-    #deckDict['owner'] = 42  #TO-DO: change this to actual owner
-    #deckDict['session-token'] = 'chocolate rain'  #TO-DO: replace with actual session token
+    deckDict['keywords'] = ''
+    deckDict['ispublic'] = True
+    deckDict['owner'] = 'fluffluff'  #TO-DO: change this to actual owner
     deckDict['children'] = []
-    deckDict['cards'] = []
-    self.populateCards(deck, deckDict['cards'])
+    deckDict['newCards'] = []
+    self.populateCards(deck, deckDict['newCards'])
     
   def populateCards(self, deck, cardList):
     cardIds = mw.col.decks.cids(deck['id'])
     for cardId in cardIds:
       card = mw.col.getCard(cardId)
       cardDict = {}
+      cardDict['cid'] = cardId
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
-      #cardDict['tags']                        TO-DO: Aarthi figure out how to get tags ty
-      #cardDict['notes'] = card.note()         TO-DO: make notes JSON serializable
-      cardDict['owner'] = 42
-      cardDict['did'] = '%d:%d' % (42, deck['id'])
+      cardDict['tags'] = []                        #TO-DO: Aarthi figure out how to get tags ty
+      cardDict['notes'] = []                       #card.note()   #TO-DO: make notes JSON serializable
+      cardDict['keywords'] = []
       
       cardList.append(cardDict)
 
