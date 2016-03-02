@@ -25,11 +25,6 @@ class AnkiHub:
     #TO-DO: Create a destructor to clear data when the QWidget is closed. Currently hacking by manually clearing instance variables.
     self.username = ''
     self.deckCol = []
-  
-    #self.login()
-    self.processDecks()
-
-    #self.createSettings()
     self.createLoginWindow()
     
   '''
@@ -130,7 +125,7 @@ class AnkiHub:
         response = urlopen(req)
         showInfo(response.read())
       except HTTPError, e:
-        showInfo(str('Sync Error: %d' % e.code))
+        showInfo(str('Sync Error: %d - %s' % (e.code, e.read())))
       except URLError, e:
         showInfo(str(e.args))
     return syncDeckAction
@@ -162,6 +157,7 @@ class AnkiHub:
         
         fakeSubs = ["superaarthi:5", "superaarthi:6"]   # TODO: get actual subscription array
         self.getSubscribeDecks(fakeSubs)
+        self.processDecks()
         self.createSettings()
       except HTTPError, e:
         showInfo(str('Login Error: %d' % e.code))
@@ -204,7 +200,7 @@ class AnkiHub:
       showInfo('Success! Result is ' + str(jsonResponse))
       self.createSettings()
     except HTTPError, e:
-      showInfo(str('Deck Upload Error: %d - %s' % e.code, str(json.loads(e.read()))))
+      showInfo(str('Deck Upload Error: %d - %s' % (e.code, str(json.loads(e.read())))))
     except URLError, e:
       showInfo(str(e.args))
       
@@ -224,7 +220,7 @@ class AnkiHub:
         #showInfo('Success! Result is ' + str(jsonResponse[0]))
         self.deckCol.append(jsonResponse[0])    # Adds retrieved deck to internal AnkiHub Deck Collection
       except HTTPError, e:
-        showInfo(str('Subscription Download Error: %d - %s' % e.code, str(json.loads(e.read()))))
+        showInfo(str('Subscription Download Error: %d - %s' % (e.code, str(json.loads(e.read())))))
       except URLError, e:
         showInfo(str(e.args))
     
@@ -299,7 +295,5 @@ Anki runs from here and calls our functions.
 '''      
 ankiHub = AnkiHub()
 action = QAction('AnkiHub', mw)
-# uncomment the function to test
 mw.connect(action, SIGNAL('triggered()'), ankiHub.initialize)
-#mw.connect(action, SIGNAL('triggered()'), ankiHub.uploadDecks)
 mw.form.menuTools.addAction(action)
