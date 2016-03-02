@@ -30,48 +30,14 @@ class AnkiHub:
     self.processDecks()
 
     self.createSettings()
-    self.createLoginWindow()
     
   '''
   GUI setup methods. Creates the QT widget that holds all AnkiHub functionality.
   '''
-  
-  '''
-  Aarthi functions - Creates the login window and retrieves decks by username.
-  '''
-  def createLoginWindow(self):
-    mw.login = QWidget()
-    mw.login.resize(500, 250);
-    mw.login.setWindowTitle("AnkiHub Login")
-    
-    mw.login.instructions = QLabel("Please input your username and password.", mw.login)
-    mw.login.instructions.move(30, 30)
-    
-    mw.login.usernameLabel = QLabel("Username: ", mw.login)
-    mw.login.usernameLabel.move(30, 100)
-    mw.login.username = QLineEdit(mw.login)
-    mw.login.username.resize(300,30)
-    mw.login.username.move(150, 100)
-    
-    mw.login.passwordLabel = QLabel("Password: ", mw.login)
-    mw.login.passwordLabel.move(30, 150)
-    mw.login.password = QLineEdit(mw.login)
-    mw.login.password.resize(300,30)
-    mw.login.password.move(150, 150)
-    
-    mw.login.submit = QPushButton('Login', mw.login)
-    mw.login.submit.move(200,200)
-    mw.login.submit.clicked.connect(self.sendLoginInfo())
-    
-    mw.login.show()
-	
-  '''
-  Zay functions - Creates the deck settings window and allows uploading.
-  '''
   def createSettings(self):
     mw.settings = QWidget()
     mw.settings.resize(1024, 520)
-    mw.settings.setWindowTitle("AnkiHub Settings")
+    mw.settings.setWindowTitle("AnkiHub")
     
     mw.settings.userLabel = QLabel(self.username + ' - Decks', mw.settings)
     mw.settings.userLabel.move(64, 32)
@@ -117,11 +83,6 @@ class AnkiHub:
   '''
   Callback functions and API calls.
   '''    
-  def sendLoginInfo(self):
-    def sendLoginInfoAction():
-      showInfo("Hello " + mw.login.username.text())
-    return sendLoginInfoAction
-
   def syncDeck(self, deck):
     def syncDeckAction():
       showInfo(str(deck))
@@ -178,7 +139,7 @@ class AnkiHub:
           deckDict[parents[-1]['name']] = {}
           self.initializeDeckValues(deckDict[parents[-1]['name']], parents[-1])
         
-        # TODO: Make this not a shitty linear time search. You can do this by making the lists into sets and creating a hashable object
+        #TO-DO: Make this not a shitty linear time search. You can do this by making the lists into sets and creating a hashable object
         #       that consists of a string (the name) and a dictionary and have it hash on the string.
         #       pls do this aarthi ty.
         if not any(child['name'] == deck['name'] for child in deckDict[parents[-1]['name']]['children']):
@@ -190,7 +151,7 @@ class AnkiHub:
     deckDict['name'] = deck['name']
     deckDict['keywords'] = ''
     deckDict['ispublic'] = True
-    deckDict['owner'] = 'fluffluff'  #TO-DO: change this to actual owner
+    deckDict['owner'] = self.username  #TO-DO: change this to actual owner
     deckDict['children'] = []
     deckDict['newCards'] = []
     self.populateCards(deck, deckDict['newCards'])
@@ -203,11 +164,25 @@ class AnkiHub:
       cardDict['cid'] = cardId
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
-      cardDict['tags'] = []                        #TO-DO: Aarthi figure out how to get tags ty
-      cardDict['notes'] = []                       #card.note()   #TO-DO: make notes JSON serializable
+      cardDict['tags'] = []
+      self.parseTags(cardId, cardDict['tags'])
+      cardDict['notes'] = []
+      self.parseNotes(card, cardDict['notes'])
       cardDict['keywords'] = []
       
       cardList.append(cardDict)
+      
+  def parseNotes(self, card, noteList):
+    note = card.note()
+    for item in note.items():
+      noteList.append(item)
+      
+  def parseTags(self, cardId, tagList):
+    query = 'select n.tags from cards c, notes n WHERE c.nid = n.id AND c.id = ?'
+    response = mw.col.db.list(query, cardId)
+    tags = list(set(mw.col.tags.split(' '.join(response))))
+    for tag in tags:
+      tagList.append(tag)
 
 '''
 Anki runs from here and calls our functions.
