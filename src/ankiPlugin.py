@@ -26,10 +26,10 @@ class AnkiHub:
     self.username = ''
     self.deckCol = []
   
-    self.login()
+#    self.login()
     self.processDecks()
 
-    self.createSettings()
+#    self.createSettings()
     self.createLoginWindow()
     
   '''
@@ -59,8 +59,12 @@ class AnkiHub:
     mw.login.password.resize(300,30)
     mw.login.password.move(150, 150)
     
+    mw.login.signup = QPushButton('New? Sign Up', mw.login)
+    mw.login.signup.move(100,200)
+    mw.login.signup.clicked.connect(self.sendSignUpInfo())
+    
     mw.login.submit = QPushButton('Login', mw.login)
-    mw.login.submit.move(200,200)
+    mw.login.submit.move(300,200)
     mw.login.submit.clicked.connect(self.sendLoginInfo())
     
     mw.login.show()
@@ -117,10 +121,11 @@ class AnkiHub:
   '''
   Callback functions and API calls.
   '''    
-  def sendLoginInfo(self):
-    def sendLoginInfoAction():
-      showInfo("Hello " + mw.login.username.text())
-    return sendLoginInfoAction
+  def sendLoginInfo(self): 
+    return self.login
+    
+  def sendSignUpInfo(self):
+    return self.signup
 
   def syncDeck(self, deck):
     def syncDeckAction():
@@ -144,16 +149,38 @@ class AnkiHub:
     return redirectAction
     
   def login(self):
-    loginJson = {'username' : 'fluffluff', 'password' : 'password'}
+    self.username = mw.login.username.text()
+    password = mw.login.password.text()
+    loginJson = {'username' : self.username, 'password' : password}
     requestURL = self.url + '/api/users/login/'
     req = Request(requestURL, json.dumps(loginJson), {'Content-Type' : 'application/json'})
-    
+      
     try:
       response = urlopen(req)
       jsonResponse = json.loads(response.read())
-      self.username = jsonResponse['user']['username']
+      mw.login.close()
+      showInfo('Success! Subscriptions is ' + str(jsonResponse['user']['subscriptions']))
+      self.createSettings()
     except HTTPError, e:
-      showInfo(str('Login Error: %d' % e.code))
+      showInfo(str('Login Error: %d' % e.code) + " - Did you type a valid username/password?")
+    except URLError, e:
+      showInfo(str(e.args))
+      
+  def signup(self):
+    self.username = mw.login.username.text()
+    password = mw.login.password.text()
+    loginJson = {'username' : self.username, 'password' : password}
+    requestURL = self.url + '/api/users/signup/'
+    req = Request(requestURL, json.dumps(loginJson), {'Content-Type' : 'application/json'})
+      
+    try:
+      response = urlopen(req)
+      jsonResponse = json.loads(response.read())
+      mw.login.close()
+      showInfo('Success! json is ' + str(jsonResponse))
+      self.createSettings()
+    except HTTPError, e:
+      showInfo(str('SignUp Error: %d' % e.code) + " - Did you already sign up?")
     except URLError, e:
       showInfo(str(e.args))
     
