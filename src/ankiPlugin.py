@@ -279,12 +279,7 @@ class AnkiHub:
         if parents[-1]['name'] not in deckDict:
           deckDict[parents[-1]['name']] = {}
           self.initializeDeckValues(deckDict[parents[-1]['name']], parents[-1])
-        
-        #TO-DO: Make this not a shitty linear time search. You can do this by making the lists into sets and creating a hashable object
-        #       that consists of a string (the name) and a dictionary and have it hash on the string.
-        #       pls do this aarthi ty.
-        if not any(child['name'] == deck['name'] for child in deckDict[parents[-1]['name']]['children']):
-          deckDict[parents[-1]['name']]['children'].append(deck)
+        deckDict[parents[-1]['name']]['children'].append(deck)
   
   def initializeDeckValues(self, deckDict, deck):
     deckDict['did'] = deck['id']
