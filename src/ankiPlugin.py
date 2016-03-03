@@ -4,6 +4,8 @@ from urllib2 import Request, urlopen, URLError, HTTPError
 from pprint import pprint
 import json
 import urllib
+import threading
+import time
 
 # import the main window object (mw) from ankiqt
 from aqt import mw
@@ -17,6 +19,7 @@ class AnkiHub:
   url = 'http://ankihub.herokuapp.com'
   username = ''
   deckCol = []
+  jsonResponse = []
 
   '''
   Initial entry point of function. Should be the only function called by global.
@@ -51,6 +54,7 @@ class AnkiHub:
     mw.login.passwordLabel = QLabel('Password:', mw.login)
     mw.login.passwordLabel.move(30, 150)
     mw.login.password = QLineEdit(mw.login)
+    mw.login.password.setEchoMode(QLineEdit.Password)
     mw.login.password.resize(300,30)
     mw.login.password.move(150, 150)
     
@@ -112,22 +116,37 @@ class AnkiHub:
       
       self.createTreeChildren(deckTree, child, treeNode)
   
+  def createLoadingScreen(self):
+    mw.loading = QWidget()
+    mw.loading.resize(275, 100)
+    mw.loading.loadingLabel = QLabel('Loading, please wait...', mw.loading)
+    mw.loading.loadingLabel.move(30, 30)
+    
+    mw.loading.show()
+    mw.loading.repaint()
+    
+  def createSyncScreen(self, deckName, syncThread):
+    syncLabel = QLabel('Syncing deck "%s", please wait...' % deckName)
+    
+    syncLabel.show()
+    syncLabel.repaint()
+    
+    syncThread.join()
+  
   '''
   Callback functions and API calls.
   '''    
   def syncDeck(self, deck):
     def syncDeckAction():
-      showInfo(str(deck))
       requestURL = self.url + '/api/decks/'
-      req = Request(requestURL, json.dumps(deck), {'Content-Type' : 'application/json'})
-      
+      request = Request(requestURL, json.dumps(deck), {'Content-Type' : 'application/json'})
+      syncThread = threading.Thread(target=self.processRequest, args=('Sync', request))
+      loadThread = threading.Thread(target=self.createSyncScreen, args=(deck['name'], syncThread))
       try:
-        response = urlopen(req)
-        showInfo(response.read())
-      except HTTPError, e:
-        showInfo(str('Sync Error: %d - %s' % (e.code, e.read())))
-      except URLError, e:
-        showInfo(str(e.args))
+        syncThread.start()
+        loadThread.start()
+      except:
+        showInfo('Could not start sync thread')
     return syncDeckAction
     
   def redirect(self):
@@ -138,6 +157,8 @@ class AnkiHub:
     
   def connect(self, endpoint):
     def connectAction():
+      self.createLoadingScreen()
+      
       self.username = mw.login.username.text()
       password = mw.login.password.text()
       loginJson = {'username' : self.username, 'password' : password}
@@ -145,7 +166,7 @@ class AnkiHub:
       # Sends POST request for login or signup
       requestURL = self.url + '/api/users/' + endpoint
       req = Request(requestURL, json.dumps(loginJson), {'Content-Type' : 'application/json'})
-        
+      
       try:
         response = urlopen(req)
         jsonResponse = json.loads(response.read())
@@ -154,16 +175,17 @@ class AnkiHub:
 
         # Uncomment next line to add the hardcoded test deck  
         #self.addTestDeck()
-        
+
         fakeSubs = ["superaarthi:5", "superaarthi:6"]   # TODO: get actual subscription array
         self.getSubscribeDecks(fakeSubs)
         self.processDecks()
+        mw.loading.close()
         self.createSettings()
       except HTTPError, e:
         showInfo(str('Login Error: %d' % e.code))
       except URLError, e:
         showInfo(str(e.args))
-    return connectAction 
+    return connectAction
       
   def addTestDeck(self):
     # Edit this to add different decks
@@ -223,6 +245,19 @@ class AnkiHub:
         showInfo(str('Subscription Download Error: %d - %s' % (e.code, str(json.loads(e.read())))))
       except URLError, e:
         showInfo(str(e.args))
+  
+  '''
+  Allows for requests (both GET and POST) to be made asynchronously when used as target for threads.
+  '''  
+  def processRequest(self, requestFrom, request):
+    try:
+      response = urlopen(request)
+      jsonResponse = json.loads(response.read())
+      showInfo('%s Request Successful!' % requestFrom)
+    except HTTPError, e:
+      showInfo(str('%s Error: %d - %s' % (requestFrom, e.code, e.read())))
+    except URLError, e:
+      showInfo(str(e.args))
     
   '''
   Algorithms to serialize JSONs.
@@ -257,7 +292,7 @@ class AnkiHub:
     deckDict['name'] = deck['name']
     deckDict['keywords'] = ''
     deckDict['ispublic'] = True
-    deckDict['owner'] = self.username  #TO-DO: change this to actual owner
+    deckDict['owner'] = self.username
     deckDict['children'] = []
     deckDict['newCards'] = []
     self.populateCards(deck, deckDict['newCards'])
