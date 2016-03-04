@@ -4,8 +4,6 @@ from urllib2 import Request, urlopen, URLError, HTTPError
 from pprint import pprint
 import json
 import urllib
-import threading
-import time
 
 # import the main window object (mw) from ankiqt
 from aqt import mw
@@ -19,7 +17,6 @@ class AnkiHub:
   url = 'http://ankihub.herokuapp.com'
   username = ''
   deckCol = []
-  jsonResponse = []
 
   '''
   Initial entry point of function. Should be the only function called by global.
@@ -28,43 +25,47 @@ class AnkiHub:
     #TO-DO: Create a destructor to clear data when the QWidget is closed. Currently hacking by manually clearing instance variables.
     self.username = ''
     self.deckCol = []
+  
+#    self.login()
+    self.processDecks()
+
+#    self.createSettings()
     self.createLoginWindow()
     
   '''
   GUI setup methods. Creates the QT widget that holds all AnkiHub functionality.
   '''
-
+  
   '''
   Aarthi functions - Creates the login window and retrieves decks by username.
   '''
   def createLoginWindow(self):
     mw.login = QWidget()
     mw.login.resize(500, 250);
-    mw.login.setWindowTitle('AnkiHub Login')
+    mw.login.setWindowTitle("AnkiHub Login")
     
-    mw.login.instructions = QLabel('Please input your username and password.', mw.login)
+    mw.login.instructions = QLabel("Please input your username and password.", mw.login)
     mw.login.instructions.move(30, 30)
     
-    mw.login.usernameLabel = QLabel('Username:', mw.login)
+    mw.login.usernameLabel = QLabel("Username: ", mw.login)
     mw.login.usernameLabel.move(30, 100)
     mw.login.username = QLineEdit(mw.login)
     mw.login.username.resize(300,30)
     mw.login.username.move(150, 100)
     
-    mw.login.passwordLabel = QLabel('Password:', mw.login)
+    mw.login.passwordLabel = QLabel("Password: ", mw.login)
     mw.login.passwordLabel.move(30, 150)
     mw.login.password = QLineEdit(mw.login)
-    mw.login.password.setEchoMode(QLineEdit.Password)
     mw.login.password.resize(300,30)
     mw.login.password.move(150, 150)
     
-    mw.login.signup = QPushButton('Register', mw.login)
+    mw.login.signup = QPushButton('New? Sign Up', mw.login)
     mw.login.signup.move(100,200)
-    mw.login.signup.clicked.connect(self.connect('signup/'))
+    mw.login.signup.clicked.connect(self.sendSignUpInfo())
     
     mw.login.submit = QPushButton('Login', mw.login)
     mw.login.submit.move(300,200)
-    mw.login.submit.clicked.connect(self.connect('login/'))
+    mw.login.submit.clicked.connect(self.sendLoginInfo())
     
     mw.login.show()
 	
@@ -74,11 +75,12 @@ class AnkiHub:
   def createSettings(self):
     mw.settings = QWidget()
     mw.settings.resize(1024, 520)
-    mw.settings.setWindowTitle('AnkiHub Settings')
+    mw.settings.setWindowTitle("AnkiHub Settings")
     
     mw.settings.userLabel = QLabel(self.username + ' - Decks', mw.settings)
     mw.settings.userLabel.move(64, 32)
     
+    #self.createTable()
     self.createTree()
     
     mw.settings.redirect = QPushButton('Go to AnkiHub', mw.settings)
@@ -116,143 +118,80 @@ class AnkiHub:
       
       self.createTreeChildren(deckTree, child, treeNode)
   
-  def createLoadingScreen(self):
-    mw.loading = QWidget()
-    mw.loading.resize(275, 100)
-    mw.loading.loadingLabel = QLabel('Loading, please wait...', mw.loading)
-    mw.loading.loadingLabel.move(30, 30)
-    
-    mw.loading.show()
-    mw.loading.repaint()
-    
-  def createSyncScreen(self, deckName, syncThread):
-    syncLabel = QLabel('Syncing deck "%s", please wait...' % deckName)
-    
-    syncLabel.show()
-    syncLabel.repaint()
-    
-    syncThread.join()
-  
   '''
   Callback functions and API calls.
-  '''    
+  '''
+  # Calculate and upload transactions/deck changes to the server
+  def uploadTranasactions(self):
+    # GET request to ankihub.herokuapp.com/api/decks?name=deckName
+    print urllib2.urlopen("http://ankihub.herokuapp.com/api/decks?name=Default").read()
+    # Get JSON copy of local deck (processDeck)
+    # Pass JSON from request and local copy of deck to transactionCalculator
+    # POST request to transations endpoint
+
+  def sendLoginInfo(self): 
+    return self.login
+    
+  def sendSignUpInfo(self):
+    return self.signup
+
   def syncDeck(self, deck):
+    # Temp Call to getTrans
     def syncDeckAction():
+      showInfo(str(deck))
       requestURL = self.url + '/api/decks/'
-      request = Request(requestURL, json.dumps(deck), {'Content-Type' : 'application/json'})
-      syncThread = threading.Thread(target=self.processRequest, args=('Sync', request))
-      loadThread = threading.Thread(target=self.createSyncScreen, args=(deck['name'], syncThread))
+      req = Request(requestURL, json.dumps(deck), {'Content-Type' : 'application/json'})
+      
       try:
-        syncThread.start()
-        loadThread.start()
-      except:
-        showInfo('Could not start sync thread')
+        response = urlopen(req)
+        showInfo(response.read())
+      except HTTPError, e:
+        showInfo(str('Sync Error: %d' % e.code))
+      except URLError, e:
+        showInfo(str(e.args))
     return syncDeckAction
     
+
+
   def redirect(self):
     def redirectAction():
       showInfo('Redirecting to AnkiHub')
       webbrowser.open(self.url)
     return redirectAction
     
-  def connect(self, endpoint):
-    def connectAction():
-      self.createLoadingScreen()
-      
-      self.username = mw.login.username.text()
-      password = mw.login.password.text()
-      loginJson = {'username' : self.username, 'password' : password}
-      
-      # Sends POST request for login or signup
-      requestURL = self.url + '/api/users/' + endpoint
-      req = Request(requestURL, json.dumps(loginJson), {'Content-Type' : 'application/json'})
-      
-      try:
-        response = urlopen(req)
-        jsonResponse = json.loads(response.read())
-        mw.login.close()
-        showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
-
-        # Uncomment next line to add the hardcoded test deck  
-        #self.addTestDeck()
-        
-        fakeSubs = ["Fluffluff:1455868404963", "Fluffluff:1450615551399"]   # TODO: get actual subscription array
-        self.getSubscribeDecks(fakeSubs)
-        self.processDecks()
-        mw.loading.close()
-        self.createSettings()
-      except HTTPError, e:
-        showInfo(str('Login Error: %d' % e.code))
-      except URLError, e:
-        showInfo(str(e.args))
-    return connectAction
-      
-  def addTestDeck(self):
-    # Edit this to add different decks
-    testJson = {
-        "did":7,
-        "desc": "Aarthi's dogology deck",
-        "name": "Dogology",
-        "keywords": "key",
-        "ispublic": True,
-        "newCards": [
-          {
-            "cid": 1,
-            "did": 25,
-            "front": "Who's the bestest doggy?",
-            "back": "<span>Blaze!</span>",
-            "tags": [],
-            "notes": [],
-            "keywords": "word",
-            "owner": self.username
-          }
-        ],
-        "owner":self.username,
-        "children":[],
-        "cids":[],
-        "subscribers":[]
-    }
-
-    requestURL = self.url + '/api/decks/'
-    req = Request(requestURL, json.dumps(testJson), {'Content-Type' : 'application/json'})
+  def login(self):
+    self.username = mw.login.username.text()
+    password = mw.login.password.text()
+    loginJson = {'username' : self.username, 'password' : password}
+    requestURL = self.url + '/api/users/login/'
+    req = Request(requestURL, json.dumps(loginJson), {'Content-Type' : 'application/json'})
       
     try:
       response = urlopen(req)
       jsonResponse = json.loads(response.read())
-      showInfo('Success! Result is ' + str(jsonResponse))
+      mw.login.close()
+      showInfo('Success! Subscriptions is ' + str(jsonResponse['user']['subscriptions']))
       self.createSettings()
     except HTTPError, e:
-      showInfo(str('Deck Upload Error: %d - %s' % (e.code, str(json.loads(e.read())))))
+      showInfo(str('Login Error: %d' % e.code) + " - Did you type a valid username/password?")
     except URLError, e:
       showInfo(str(e.args))
       
-  def getSubscribeDecks(self, subs):
-    for sub in subs:    #sub = "superaarthi:5" and "superaarthi:6"
-      requestURL = self.url + '/api/decks/'
+  def signup(self):
+    self.username = mw.login.username.text()
+    password = mw.login.password.text()
+    loginJson = {'username' : self.username, 'password' : password}
+    requestURL = self.url + '/api/users/signup/'
+    req = Request(requestURL, json.dumps(loginJson), {'Content-Type' : 'application/json'})
       
-      try:
-        response = urlopen(requestURL+sub)
-        jsonResponse = json.loads(response.read())
-        
-        # Uncomment this line to see data in retrieved deck
-        #showInfo('Success! Result is ' + str(jsonResponse[0]))
-        if len(jsonResponse > 0):
-          self.deckCol.append(jsonResponse[0])    # Adds retrieved deck to internal AnkiHub Deck Collection
-      except HTTPError, e:
-        showInfo(str('Subscription Download Error: %d - %s' % (e.code, str(json.loads(e.read())))))
-      except URLError, e:
-        showInfo(str(e.args))
-  
-  '''
-  Allows for requests (both GET and POST) to be made asynchronously when used as target for threads.
-  '''  
-  def processRequest(self, requestFrom, request):
     try:
-      response = urlopen(request)
+      response = urlopen(req)
       jsonResponse = json.loads(response.read())
-      showInfo('%s Request Successful!' % requestFrom)
+      mw.login.close()
+      showInfo('Success! json is ' + str(jsonResponse))
+      self.createSettings()
     except HTTPError, e:
-      showInfo(str('%s Error: %d - %s' % (requestFrom, e.code, e.read())))
+      showInfo(str('SignUp Error: %d' % e.code) + " - Did you already sign up?")
     except URLError, e:
       showInfo(str(e.args))
     
@@ -276,15 +215,20 @@ class AnkiHub:
         if parents[-1]['name'] not in deckDict:
           deckDict[parents[-1]['name']] = {}
           self.initializeDeckValues(deckDict[parents[-1]['name']], parents[-1])
-        deckDict[parents[-1]['name']]['children'].append(deck)
+        
+        # TODO: Make this not a shitty linear time search. You can do this by making the lists into sets and creating a hashable object
+        #       that consists of a string (the name) and a dictionary and have it hash on the string.
+        #       pls do this aarthi ty.
+        if not any(child['name'] == deck['name'] for child in deckDict[parents[-1]['name']]['children']):
+          deckDict[parents[-1]['name']]['children'].append(deck)
   
   def initializeDeckValues(self, deckDict, deck):
     deckDict['did'] = deck['id']
-    deckDict['desc'] = deck['desc']
+    deckDict['description'] = deck['desc']
     deckDict['name'] = deck['name']
     deckDict['keywords'] = ''
     deckDict['ispublic'] = True
-    deckDict['owner'] = self.username
+    deckDict['owner'] = 'fluffluff'  #TO-DO: change this to actual owner
     deckDict['children'] = []
     deckDict['newCards'] = []
     self.populateCards(deck, deckDict['newCards'])
@@ -297,30 +241,18 @@ class AnkiHub:
       cardDict['cid'] = cardId
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
-      cardDict['tags'] = []
-      self.parseTags(cardId, cardDict['tags'])
-      cardDict['notes'] = []
-      self.parseNotes(card, cardDict['notes'])
+      cardDict['tags'] = []                        #TO-DO: Aarthi figure out how to get tags ty
+      cardDict['notes'] = []                       #card.note()   #TO-DO: make notes JSON serializable
       cardDict['keywords'] = []
       
       cardList.append(cardDict)
-      
-  def parseNotes(self, card, noteList):
-    note = card.note()
-    for item in note.items():
-      noteList.append(item)
-      
-  def parseTags(self, cardId, tagList):
-    query = 'select n.tags from cards c, notes n WHERE c.nid = n.id AND c.id = ?'
-    response = mw.col.db.list(query, cardId)
-    tags = list(set(mw.col.tags.split(' '.join(response))))
-    for tag in tags:
-      tagList.append(tag)
 
 '''
 Anki runs from here and calls our functions.
 '''      
 ankiHub = AnkiHub()
 action = QAction('AnkiHub', mw)
+# uncomment the function to test
 mw.connect(action, SIGNAL('triggered()'), ankiHub.initialize)
+#mw.connect(action, SIGNAL('triggered()'), ankiHub.uploadDecks)
 mw.form.menuTools.addAction(action)
