@@ -14,6 +14,9 @@ from aqt.utils import showInfo
 # import all of the Qt GUI library
 from aqt.qt import *
 
+###############################################################
+#    Wrapper for QWidget to overwrite closeEvent function.    #
+###############################################################
 class AnkiWidget(QWidget):
   def __init__(self, AnkiHubInstance, parent=None):
     super(AnkiWidget, self).__init__(parent)
@@ -23,12 +26,16 @@ class AnkiWidget(QWidget):
     self.ankiHubInstance.terminate()
     super(AnkiWidget, self).closeEvent(event)
 
+###############################################################
+#                   Main program for AnkiHub                  #
+###############################################################
 class AnkiHub:
-
+  '''
+  Instance/global variables.
+  '''
   url = 'http://ankihub.herokuapp.com'
   username = ''
   deckCol = []
-  jsonResponse = []
 
   '''
   Initial entry point of function. Should be the only function called by global.
@@ -37,16 +44,19 @@ class AnkiHub:
     #TO-DO: Create a destructor to clear data when the QWidget is closed. Currently hacking by manually clearing instance variables.
     self.createLoginWindow()
     
+  '''
+  Destructor function to clean data when closing AnkiHub window.
+  '''
   def terminate(self):
     self.username = ''
     self.deckCol = []
     
-  '''
-  GUI setup methods. Creates the QT widget that holds all AnkiHub functionality.
-  '''
+  ####################################################################################
+  #  GUI setup methods. Creates the QT widget that holds all AnkiHub functionality.  #
+  ####################################################################################
 
   '''
-  Aarthi functions - Creates the login window and retrieves decks by username.
+  Creates the login window.
   '''
   def createLoginWindow(self):
     mw.login = QWidget()
@@ -80,7 +90,7 @@ class AnkiHub:
     mw.login.show()
 	
   '''
-  Zay functions - Creates the deck settings window and allows uploading.
+  Creates the deck settings window.
   '''
   def createSettings(self):
     mw.settings = AnkiWidget(self)
@@ -97,7 +107,10 @@ class AnkiHub:
     mw.settings.redirect.move(440, 460)
     
     mw.settings.show()
-      
+  
+  '''
+  Creates tree view to display deck hierarchy.
+  '''  
   def createTree(self):
     mw.settings.deckTree = QTreeWidget(mw.settings)
     deckTree = mw.settings.deckTree
@@ -117,6 +130,9 @@ class AnkiHub:
       
       self.createTreeChildren(deckTree, rootDeck, treeNode)
 
+  '''
+  Helper method to add children to parent decks.
+  '''
   def createTreeChildren(self, deckTree, parentDeck, parentNode):
     for child in parentDeck['children']:
       treeNode = QTreeWidgetItem(parentNode)
@@ -127,6 +143,9 @@ class AnkiHub:
       
       self.createTreeChildren(deckTree, child, treeNode)
   
+  '''
+  Creates loading window for visual feedback on data processing.
+  '''
   def createLoadingScreen(self):
     mw.loading = QWidget()
     mw.loading.resize(275, 100)
@@ -135,7 +154,10 @@ class AnkiHub:
     
     mw.loading.show()
     mw.loading.repaint()
-    
+   
+  '''
+  Creates dialog for syncing/uploading decks.
+  '''  
   def createSyncScreen(self, deckName, syncThread):
     syncLabel = QLabel('Syncing deck "%s", please wait...' % deckName)
     
@@ -144,9 +166,10 @@ class AnkiHub:
     
     syncThread.join()
   
-  '''
-  Callback functions and API calls.
-  '''
+  ###################################################
+  #       Callback functions and API calls.         #
+  ###################################################
+  
   def uploadTranasactions(self):
     # GET request to ankihub.herokuapp.com/api/decks?name=deckName
     print urllib2.urlopen("http://ankihub.herokuapp.com/api/decks?name=Default").read()
@@ -154,6 +177,9 @@ class AnkiHub:
     # Pass JSON from request and local copy of deck to transactionCalculator
     # POST request to transations endpoint
   
+  '''
+  Callback function for Sync button. Uses multithreading to process POST requests to /api/decks/
+  '''
   def syncDeck(self, deck):
     # Temp Call to getTrans
     def syncDeckAction():
@@ -168,12 +194,18 @@ class AnkiHub:
         showInfo('Could not start sync thread')
     return syncDeckAction
     
+  '''
+  Callback function to redirect user to AnkiHub.
+  '''
   def redirect(self):
     def redirectAction():
       showInfo('Redirecting to AnkiHub')
       webbrowser.open(self.url)
     return redirectAction
     
+  '''
+  Callback function that makes POST requests to /api/users/login/ or /api/users/signup/
+  '''
   def connect(self, endpoint):
     def connectAction():
       self.createLoadingScreen()
@@ -205,7 +237,10 @@ class AnkiHub:
       except URLError, e:
         showInfo(str(e.args))
     return connectAction
-      
+    
+  '''
+  GET request to get decks that a user is subscribed to.
+  '''
   def getSubscribeDecks(self, subs):
     for sub in subs:    #sub = "superaarthi:5" and "superaarthi:6"
       requestURL = self.url + '/api/decks/'
@@ -224,7 +259,7 @@ class AnkiHub:
         showInfo(str(e.args))
   
   '''
-  Allows for requests (both GET and POST) to be made asynchronously when used as target for threads.
+  Allows for general requests (both GET and POST) to be made asynchronously when used as target for threads. Currently only used for Sync.
   '''  
   def processRequest(self, requestFrom, request):
     try:
@@ -236,8 +271,12 @@ class AnkiHub:
     except URLError, e:
       showInfo(str(e.args))
     
+  #################################################
+  #         Algorithms to serialize JSONs.        #
+  #################################################
+  
   '''
-  Algorithms to serialize JSONs.
+  Main function to process decks. Gets decks from Anki and creates the overall JSON.
   '''
   def processDecks(self):
     decks = mw.col.decks.all()
@@ -258,6 +297,9 @@ class AnkiHub:
           self.initializeDeckValues(deckDict[parents[-1]['name']], parents[-1])
         deckDict[parents[-1]['name']]['children'].append(deck)
   
+  '''
+  Initializer function to create a deck with the proper fields.
+  '''
   def initializeDeckValues(self, deckDict, deck):
     deckDict['did'] = deck['id']
     deckDict['desc'] = deck['desc']
@@ -269,6 +311,9 @@ class AnkiHub:
     deckDict['newCards'] = []
     self.populateCards(deck, deckDict['newCards'])
     
+  '''
+  Initializer function to create a card with the proper fields.
+  '''
   def populateCards(self, deck, cardList):
     cardIds = mw.col.decks.cids(deck['id'])
     for cardId in cardIds:
@@ -285,11 +330,17 @@ class AnkiHub:
       
       cardList.append(cardDict)
       
+  '''
+  Helper function to parse the notes of a card.
+  '''
   def parseNotes(self, card, noteList):
     note = card.note()
     for item in note.items():
       noteList.append(item)
       
+  '''
+  Helper function to parse the tags of a card.
+  '''
   def parseTags(self, cardId, tagList):
     query = 'select n.tags from cards c, notes n WHERE c.nid = n.id AND c.id = ?'
     response = mw.col.db.list(query, cardId)
@@ -297,9 +348,9 @@ class AnkiHub:
     for tag in tags:
       tagList.append(tag)
 
-'''
-Anki runs from here and calls our functions.
-'''      
+#############################################################
+#       Anki runs from here and calls our functions.        #
+#############################################################
 ankiHub = AnkiHub()
 action = QAction('AnkiHub', mw)
 mw.connect(action, SIGNAL('triggered()'), ankiHub.initialize)
