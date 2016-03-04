@@ -14,6 +14,15 @@ from aqt.utils import showInfo
 # import all of the Qt GUI library
 from aqt.qt import *
 
+class AnkiWidget(QWidget):
+  def __init__(self, AnkiHubInstance, parent=None):
+    super(AnkiWidget, self).__init__(parent)
+    self.ankiHubInstance = AnkiHubInstance
+    
+  def closeEvent(self, event):
+    self.ankiHubInstance.terminate()
+    super(AnkiWidget, self).closeEvent(event)
+
 class AnkiHub:
 
   url = 'http://ankihub.herokuapp.com'
@@ -26,9 +35,11 @@ class AnkiHub:
   '''
   def initialize(self):
     #TO-DO: Create a destructor to clear data when the QWidget is closed. Currently hacking by manually clearing instance variables.
+    self.createLoginWindow()
+    
+  def terminate(self):
     self.username = ''
     self.deckCol = []
-    self.createLoginWindow()
     
   '''
   GUI setup methods. Creates the QT widget that holds all AnkiHub functionality.
@@ -72,7 +83,7 @@ class AnkiHub:
   Zay functions - Creates the deck settings window and allows uploading.
   '''
   def createSettings(self):
-    mw.settings = QWidget()
+    mw.settings = AnkiWidget(self)
     mw.settings.resize(1024, 520)
     mw.settings.setWindowTitle('AnkiHub Settings')
     
@@ -184,8 +195,8 @@ class AnkiHub:
         # Uncomment next line to add the hardcoded test deck  
         #self.addTestDeck()
         
-        fakeSubs = ["Fluffluff:1455868404963", "Fluffluff:1450615551399"]   # TODO: get actual subscription array
-        self.getSubscribeDecks(fakeSubs)
+        #fakeSubs = ["Fluffluff:1455868404963", "Fluffluff:1450615551399"]   # TODO: get actual subscription array
+        #self.getSubscribeDecks(fakeSubs)
         self.processDecks()
         mw.loading.close()
         self.createSettings()
@@ -194,45 +205,6 @@ class AnkiHub:
       except URLError, e:
         showInfo(str(e.args))
     return connectAction
-      
-  def addTestDeck(self):
-    # Edit this to add different decks
-    testJson = {
-        "did":7,
-        "desc": "Aarthi's dogology deck",
-        "name": "Dogology",
-        "keywords": "key",
-        "ispublic": True,
-        "newCards": [
-          {
-            "cid": 1,
-            "did": 25,
-            "front": "Who's the bestest doggy?",
-            "back": "<span>Blaze!</span>",
-            "tags": [],
-            "notes": [],
-            "keywords": "word",
-            "owner": self.username
-          }
-        ],
-        "owner":self.username,
-        "children":[],
-        "cids":[],
-        "subscribers":[]
-    }
-
-    requestURL = self.url + '/api/decks/'
-    req = Request(requestURL, json.dumps(testJson), {'Content-Type' : 'application/json'})
-      
-    try:
-      response = urlopen(req)
-      jsonResponse = json.loads(response.read())
-      showInfo('Success! Result is ' + str(jsonResponse))
-      self.createSettings()
-    except HTTPError, e:
-      showInfo(str('Deck Upload Error: %d - %s' % (e.code, str(json.loads(e.read())))))
-    except URLError, e:
-      showInfo(str(e.args))
       
   def getSubscribeDecks(self, subs):
     for sub in subs:    #sub = "superaarthi:5" and "superaarthi:6"
@@ -244,7 +216,7 @@ class AnkiHub:
         
         # Uncomment this line to see data in retrieved deck
         #showInfo('Success! Result is ' + str(jsonResponse[0]))
-        if len(jsonResponse > 0):
+        if len(jsonResponse) > 0:
           self.deckCol.append(jsonResponse[0])    # Adds retrieved deck to internal AnkiHub Deck Collection
       except HTTPError, e:
         showInfo(str('Subscription Download Error: %d - %s' % (e.code, str(json.loads(e.read())))))
