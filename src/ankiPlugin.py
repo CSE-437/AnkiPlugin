@@ -223,12 +223,7 @@ class AnkiHub:
         jsonResponse = json.loads(response.read())
         mw.login.close()
         showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
-
-        # Uncomment next line to add the hardcoded test deck  
-        #self.addTestDeck()
         
-        #fakeSubs = ["Fluffluff:1455868404963", "Fluffluff:1450615551399"]   # TODO: get actual subscription array
-        #self.getSubscribeDecks(fakeSubs)
         self.processDecks()
         mw.loading.close()
         self.createSettings()
@@ -242,7 +237,7 @@ class AnkiHub:
   GET request to get decks that a user is subscribed to.
   '''
   def getSubscribeDecks(self, subs):
-    for sub in subs:    #sub = "superaarthi:5" and "superaarthi:6"
+    for sub in subs:
       requestURL = self.url + '/api/decks/'
       
       try:
