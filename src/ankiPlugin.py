@@ -155,7 +155,7 @@ class AnkiHub:
         # Uncomment next line to add the hardcoded test deck  
         #self.addTestDeck()
         
-        fakeSubs = ["superaarthi:5", "superaarthi:6"]   # TODO: get actual subscription array
+        fakeSubs = ["Fluffluff:1455868404963", "Fluffluff:1450615551399"]   # TODO: get actual subscription array
         self.getSubscribeDecks(fakeSubs)
         self.processDecks()
         self.createSettings()
@@ -206,19 +206,16 @@ class AnkiHub:
       
   def getSubscribeDecks(self, subs):
     for sub in subs:    #sub = "superaarthi:5" and "superaarthi:6"
-      requestURL = self.url + '/api/decks?'
-      
-      #TODO: do this in a not hardcoded way
-      filter = 'owner=superaarthi&user=superaarthi&gid=' + sub
-      fullUrl = requestURL + filter
+      requestURL = self.url + '/api/decks/'
       
       try:
-        response = urlopen(fullUrl)
+        response = urlopen(requestURL+sub)
         jsonResponse = json.loads(response.read())
         
         # Uncomment this line to see data in retrieved deck
         #showInfo('Success! Result is ' + str(jsonResponse[0]))
-        self.deckCol.append(jsonResponse[0])    # Adds retrieved deck to internal AnkiHub Deck Collection
+        if len(jsonResponse > 0):
+          self.deckCol.append(jsonResponse[0])    # Adds retrieved deck to internal AnkiHub Deck Collection
       except HTTPError, e:
         showInfo(str('Subscription Download Error: %d - %s' % (e.code, str(json.loads(e.read())))))
       except URLError, e:
