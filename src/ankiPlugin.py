@@ -1,6 +1,7 @@
 from AnkiHubLibs import webbrowser
 
 from urllib2 import Request, urlopen, URLError, HTTPError
+import urllib2
 from pprint import pprint
 import json
 import urllib
@@ -125,6 +126,7 @@ class AnkiHub:
       treeNode = QTreeWidgetItem(deckTree)
       treeNode.setText(0, rootDeck['name'])
       treeButton = QPushButton('Sync')
+      #treeButton.clicked.connect(self.uploadTranasactions(rootDeck))
       treeButton.clicked.connect(self.syncDeck(rootDeck))
       deckTree.setItemWidget(treeNode, 1, treeButton)
       
@@ -138,6 +140,7 @@ class AnkiHub:
       treeNode = QTreeWidgetItem(parentNode)
       treeNode.setText(0, child['name'])
       treeButton = QPushButton('Sync')
+      #treeButton.clicked.connect(self.uploadTranasactions(child))
       treeButton.clicked.connect(self.syncDeck(child))
       deckTree.setItemWidget(treeNode, 1, treeButton)
       
@@ -170,12 +173,33 @@ class AnkiHub:
   #       Callback functions and API calls.         #
   ###################################################
   
-  def uploadTranasactions(self):
+  def uploadTranasactions(self, deck):
+    # TODO: The Transactions syntax isn't correct.  How do we access info such as gid?
     # GET request to ankihub.herokuapp.com/api/decks?name=deckName
-    print urllib2.urlopen("http://ankihub.herokuapp.com/api/decks?name=Default").read()
-    # Get JSON copy of local deck (processDeck)
-    # Pass JSON from request and local copy of deck to transactionCalculator
-    # POST request to transations endpoint
+    def uploadTransactionsAction(): 
+      #syncDeck()
+      requestResult = json.loads(urllib2.urlopen("http://ankihub.herokuapp.com/api/decks?name=Deck%202").read())
+      transactions = []
+      # Always uses the first deck returned
+      remoteCards = requestResult[0]["newCards"]
+      localCards = deck["newCards"]
+      for lcard in localCards:
+        # Find the matching id by cid
+        cardFound = False
+        for rcard in remoteCards:
+          if lcard["cid"] == rcard["cid"]:
+            # Found matching card.  See if all properties match
+            cardFound = True
+            if rcard["back"] != lcard["back"] or rcard["front"] != lcard["front"]:
+              # Card doesnt match.  Delete and recreate
+              transactions.append({"query":"REMOVE", "data":{"id":rcard["cid"]}})
+              transactions.append({"query":"CREATE", "data":rcard})
+            break
+        if cardFound == False:
+          transactions.append({"query":"CREATE", "data":lcard})
+      showInfo(str(transactions))
+    return uploadTransactionsAction
+
   
   '''
   Callback function for Sync button. Uses multithreading to process POST requests to /api/decks/
