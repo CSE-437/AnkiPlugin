@@ -223,7 +223,6 @@ class AnkiHub:
         jsonResponse = json.loads(response.read())
         mw.login.close()
         showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
-
         self.processDecks()
         mw.loading.close()
         self.createSettings()
