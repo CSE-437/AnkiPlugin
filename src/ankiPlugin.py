@@ -1,6 +1,7 @@
 from AnkiHubLibs import webbrowser
 
 from urllib2 import Request, urlopen, URLError, HTTPError
+from cookielib import CookieJar
 from pprint import pprint
 import json
 import urllib
@@ -33,6 +34,7 @@ class AnkiHub:
   '''
   Instance/global variables.
   '''
+  cj = cookielib.CookieJar()
   url = 'http://ankihub.herokuapp.com'
   username = ''
   deckCol = []
