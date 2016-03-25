@@ -33,8 +33,9 @@ class AnkiHub:
   '''
   Instance/global variables.
   '''
-  url = 'http://localhost:3000/'
+  url = 'http://ankihub.herokuapp.com'
   username = ''
+  sessionToken = ''
   deckCol = []
 
   '''
@@ -49,6 +50,7 @@ class AnkiHub:
   '''
   def terminate(self):
     self.username = ''
+    sessionToken = ''
     self.deckCol = []
 
   ####################################################################################
@@ -210,7 +212,7 @@ class AnkiHub:
     def connectAction():
       self.createLoadingScreen()
 
-    #  self.username = mw.login.username.text()
+      self.username = mw.login.username.text()
       password = mw.login.password.text()
       loginJson = {'username' : self.username, 'password' : password}
 
@@ -221,9 +223,11 @@ class AnkiHub:
       try:
         response = urlopen(req)
         jsonResponse = json.loads(response.read())
+        showInfo(json.dumps(jsonResponse))
         mw.login.close()
-        self.username = jsonResponse['username']
-        showInfo('Success! Logged in as ' + jsonResponse['username'])
+        self.username = jsonResponse['user']['username']
+        self.sessionToken = jsonResponse['user']['sessionToken']
+        showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
         self.processDecks()
         mw.loading.close()
         self.createSettings()
@@ -296,12 +300,13 @@ class AnkiHub:
   Initializer function to create a deck with the proper fields.
   '''
   def initializeDeckValues(self, deckDict, deck):
+    deckDict['sessionToken'] = self.sessionToken
     deckDict['gid'] = '%s:%d' % (self.username, deck['id'])
     deckDict['did'] = deck['id']
-    deckDict['desc'] = deck['desc']
+    deckDict['description'] = deck['desc']
     deckDict['name'] = deck['name']
     deckDict['keywords'] = []
-    deckDict['ispublic'] = True
+    deckDict['isPublic'] = True
     deckDict['owner'] = self.username
     deckDict['children'] = []
     deckDict['newCards'] = []
@@ -315,6 +320,7 @@ class AnkiHub:
     for cardId in cardIds:
       card = mw.col.getCard(cardId)
       cardDict = {}
+      cardDict['did'] = str('%s:%d' % (self.username, deck['id']))
       cardDict['cid'] = cardId
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
@@ -323,7 +329,6 @@ class AnkiHub:
       cardDict['tags'] = []
       self.parseTags(cardId, cardDict['tags'])
       cardDict['keywords'] = []
-      cardDict['gid'] = str('%s:%s:%s' % (self.username, deck['id'], cardId))
 
       cardList.append(cardDict)
 
@@ -332,11 +337,14 @@ class AnkiHub:
   '''
   def parseNotes(self, deckId, card, noteList):
     note = card.note()
+    '''
+    #Tagging experiment, please ignore
     if 'gid' not in note.items():
       tag = '%s:%d' % (self.username, deckId)
       note.addTag(tag)
       #showInfo(note.stringTags())
     note.flush()
+    '''
     for item in note.items():
       noteList.append(item)
 
