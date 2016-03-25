@@ -360,6 +360,7 @@ class AnkiHub:
 #############################################################
 #       Anki runs from here and calls our functions.        #
 #############################################################
+QCoreApplication.setAttribute(Qt.AA_X11InitThreads)
 ankiHub = AnkiHub()
 action = QAction('AnkiHub', mw)
 mw.connect(action, SIGNAL('triggered()'), ankiHub.initialize)
