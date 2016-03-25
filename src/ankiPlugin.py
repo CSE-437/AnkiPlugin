@@ -32,7 +32,7 @@ class AnkiHub:
   '''
   Instance/global variables.
   '''
-  url = 'http://ankihub.herokuapp.com'
+  url = 'http://localhost:3000'
   username = ''
   sessionToken = ''
   deckCol = []
