@@ -223,7 +223,6 @@ class AnkiHub:
       try:
         response = urlopen(req)
         jsonResponse = json.loads(response.read())
-        showInfo(json.dumps(jsonResponse))
         mw.login.close()
         self.username = jsonResponse['user']['username']
         self.sessionToken = jsonResponse['user']['sessionToken']
