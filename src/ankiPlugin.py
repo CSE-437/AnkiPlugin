@@ -296,10 +296,11 @@ class AnkiHub:
   Initializer function to create a deck with the proper fields.
   '''
   def initializeDeckValues(self, deckDict, deck):
+    deckDict['gid'] = '%s:%d' % (self.username, deck['id'])
     deckDict['did'] = deck['id']
     deckDict['desc'] = deck['desc']
     deckDict['name'] = deck['name']
-    deckDict['keywords'] = ''
+    deckDict['keywords'] = []
     deckDict['ispublic'] = True
     deckDict['owner'] = self.username
     deckDict['children'] = []
@@ -317,10 +318,10 @@ class AnkiHub:
       cardDict['cid'] = cardId
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
+      cardDict['notes'] = []
+      self.parseNotes(deck['id'], card, cardDict['notes'])
       cardDict['tags'] = []
       self.parseTags(cardId, cardDict['tags'])
-      cardDict['notes'] = []
-      self.parseNotes(card, cardDict['notes'])
       cardDict['keywords'] = []
       
       cardList.append(cardDict)
@@ -328,8 +329,13 @@ class AnkiHub:
   '''
   Helper function to parse the notes of a card.
   '''
-  def parseNotes(self, card, noteList):
+  def parseNotes(self, deckId, card, noteList):
     note = card.note()
+    if 'gid' not in note.items():
+      tag = '%s:%d' % (self.username, deckId)
+      note.addTag(tag)
+      #showInfo(note.stringTags())
+    note.flush()
     for item in note.items():
       noteList.append(item)
       
