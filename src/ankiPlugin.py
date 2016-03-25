@@ -1,7 +1,6 @@
 from AnkiHubLibs import webbrowser
 
 from urllib2 import Request, urlopen, URLError, HTTPError
-from cookielib import CookieJar
 from pprint import pprint
 import json
 import urllib
@@ -34,8 +33,7 @@ class AnkiHub:
   '''
   Instance/global variables.
   '''
-  cj = cookielib.CookieJar()
-  url = 'http://ankihub.herokuapp.com'
+  url = 'http://localhost:3000/'
   username = ''
   deckCol = []
 
@@ -224,12 +222,13 @@ class AnkiHub:
         response = urlopen(req)
         jsonResponse = json.loads(response.read())
         mw.login.close()
+        self.username = jsonResponse['user']['username']
         showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
         self.processDecks()
         mw.loading.close()
         self.createSettings()
       except HTTPError, e:
-        showInfo(str('Login Error: %d' % e.code))
+        showInfo(str('Login Error: %d - %s' % (e.code, json.loads(e.read()))))
       except URLError, e:
         showInfo(str(e.args))
     return connectAction
@@ -275,34 +274,36 @@ class AnkiHub:
   Main function to process decks. Gets decks from Anki and creates the overall JSON.
   '''
   def processDecks(self):
-    decks = mw.col.decks.all()
-    deckDict = {}
+    decks = mw.col.decks.all()    #decks from local anki
+    deckDict = {}                 #AnkiHub dictionary of processed decks: name -> json object
     for deckObj in decks:
-      if deckObj['name'] not in deckDict:
-        deckDict[deckObj['name']] = {}
-        self.initializeDeckValues(deckDict[deckObj['name']], deckObj)
+      if deckObj['name'] not in deckDict:   #if we haven't processed this deck yet
+        deckDict[deckObj['name']] = {}      #create a json-object for that deck's name
+        self.initializeDeckValues(deckDict[deckObj['name']], deckObj)   #fill empty deck-json with values
 
-      deck = deckDict[deckObj['name']]
-      parents = mw.col.decks.parents(deckObj['id'])
+      deck = deckDict[deckObj['name']]    #deck is processed, get our json object value
+      parents = mw.col.decks.parents(deckObj['id'])   #get list of parents for deck
 
       if not parents:
-        self.deckCol.append(deck)
+        self.deckCol.append(deck)     #no parents, deck is top level, just add to our master deck list
       else:
-        if parents[-1]['name'] not in deckDict:
-          deckDict[parents[-1]['name']] = {}
+        if parents[-1]['name'] not in deckDict:   #check if immediate parent is not processed
+          deckDict[parents[-1]['name']] = {}      #process immediate parent as above
           self.initializeDeckValues(deckDict[parents[-1]['name']], parents[-1])
-        deckDict[parents[-1]['name']]['children'].append(deck)
+        deckDict[parents[-1]['name']]['children'].append(deck)  #add deck-json to parent-json's children list, don't add to master list yet
 
   '''
   Initializer function to create a deck with the proper fields.
   '''
   def initializeDeckValues(self, deckDict, deck):
+    showInfo(str(deck))
     deckDict['did'] = deck['id']
     deckDict['desc'] = deck['desc']
     deckDict['name'] = deck['name']
-    deckDict['keywords'] = ''
+    deckDict['keywords'] = []
     deckDict['ispublic'] = True
     deckDict['owner'] = self.username
+    deckDict['gid'] = str('%s:%s' % (deckDict['owner'], deckDict['did']))
     deckDict['children'] = []
     deckDict['newCards'] = []
     self.populateCards(deck, deckDict['newCards'])
@@ -323,6 +324,7 @@ class AnkiHub:
       cardDict['notes'] = []
       self.parseNotes(card, cardDict['notes'])
       cardDict['keywords'] = []
+      cardDict['gid'] = str('%s:%s:%s' % (self.username, deck['id'], cardId))
 
       cardList.append(cardDict)
 
