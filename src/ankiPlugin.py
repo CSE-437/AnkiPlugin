@@ -25,7 +25,31 @@ class AnkiWidget(QWidget):
   def closeEvent(self, event):
     self.ankiHubInstance.terminate()
     super(AnkiWidget, self).closeEvent(event)
-
+    
+###############################################################
+#            QThreads for asynchronous processes.             #
+###############################################################
+class SyncThread(QThread):
+  def __init__(self, AnkiHubInstance, endpoint, request):
+    super(SyncThread, self).__init__()
+    self.ankiHubInstance = AnkiHubInstance
+    self.endpoint = endpoint
+    self.request = request
+    
+  def run(self):
+    showInfo("gello")
+    self.ankiHubInstance.processRequest(self.endpoint, self.request)
+    
+class LoadThread(QThread):
+  def __init__(self, AnkiHubInstance, deckName, syncThread):
+    QThread.__init__(self)
+    self.ankiHubInstance = AnkiHubInstance
+    self.deckName = deckName
+    self.syncThread = syncThread
+  
+  def run(self):
+    self.ankiHubInstance.createSyncScreen(self.deckName, self.syncThread)
+    
 ###############################################################
 #                   Main program for AnkiHub                  #
 ###############################################################
@@ -34,6 +58,7 @@ class AnkiHub:
   Instance/global variables.
   '''
   url = 'http://ankihub.herokuapp.com'
+  #url = 'http://localhost:3000'
   username = ''
   sessionToken = ''
   deckCol = []
@@ -189,8 +214,11 @@ class AnkiHub:
       request = Request(requestURL, json.dumps(deck), {'Content-Type' : 'application/json'})
       syncThread = threading.Thread(target=self.processRequest, args=('Sync', request))
       loadThread = threading.Thread(target=self.createSyncScreen, args=(deck['name'], syncThread))
+      #syncThread = SyncThread(self, 'Sync', request)
+      #loadThread = LoadThread(self, deck['name'], syncThread)
       try:
         syncThread.start()
+        showInfo('idk')
         loadThread.start()
       except:
         showInfo('Could not start sync thread')
@@ -319,8 +347,9 @@ class AnkiHub:
     for cardId in cardIds:
       card = mw.col.getCard(cardId)
       cardDict = {}
+      cardDict['sessionToken'] = self.sessionToken
       cardDict['did'] = str('%s:%d' % (self.username, deck['id']))
-      cardDict['cid'] = cardId
+      cardDict['cid'] = str(cardId)
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
       cardDict['notes'] = []
