@@ -320,7 +320,7 @@ class AnkiHub:
       card = mw.col.getCard(cardId)
       cardDict = {}
       cardDict['did'] = str('%s:%d' % (self.username, deck['id']))
-      cardDict['cid'] = cardId
+      cardDict['cid'] = str(cardId)
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
       cardDict['notes'] = []
