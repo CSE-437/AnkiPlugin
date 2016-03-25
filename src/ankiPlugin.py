@@ -13,7 +13,6 @@ from aqt import mw
 from aqt.utils import showInfo
 # import all of the Qt GUI library
 from aqt.qt import *
-
 ###############################################################
 #    Wrapper for QWidget to overwrite closeEvent function.    #
 ###############################################################
@@ -33,8 +32,9 @@ class AnkiHub:
   '''
   Instance/global variables.
   '''
-  url = 'http://localhost:3000/'
+  url = 'http://ankihub.herokuapp.com'
   username = ''
+  sessionToken = ''
   deckCol = []
 
   '''
@@ -49,6 +49,7 @@ class AnkiHub:
   '''
   def terminate(self):
     self.username = ''
+    sessionToken = ''
     self.deckCol = []
 
   ####################################################################################
@@ -221,8 +222,10 @@ class AnkiHub:
       try:
         response = urlopen(req)
         jsonResponse = json.loads(response.read())
+        showInfo(json.dumps(jsonResponse))
         mw.login.close()
         self.username = jsonResponse['user']['username']
+        self.sessionToken = jsonResponse['user']['sessionToken']
         showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
         self.processDecks()
         mw.loading.close()
@@ -296,14 +299,14 @@ class AnkiHub:
   Initializer function to create a deck with the proper fields.
   '''
   def initializeDeckValues(self, deckDict, deck):
-    showInfo(str(deck))
+    deckDict['sessionToken'] = self.sessionToken
+    deckDict['gid'] = '%s:%d' % (self.username, deck['id'])
     deckDict['did'] = deck['id']
-    deckDict['desc'] = deck['desc']
+    deckDict['description'] = deck['desc']
     deckDict['name'] = deck['name']
     deckDict['keywords'] = []
-    deckDict['ispublic'] = True
+    deckDict['isPublic'] = True
     deckDict['owner'] = self.username
-    deckDict['gid'] = str('%s:%s' % (deckDict['owner'], deckDict['did']))
     deckDict['children'] = []
     deckDict['newCards'] = []
     self.populateCards(deck, deckDict['newCards'])
@@ -316,23 +319,31 @@ class AnkiHub:
     for cardId in cardIds:
       card = mw.col.getCard(cardId)
       cardDict = {}
+      cardDict['did'] = str('%s:%d' % (self.username, deck['id']))
       cardDict['cid'] = cardId
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
+      cardDict['notes'] = []
+      self.parseNotes(deck['id'], card, cardDict['notes'])
       cardDict['tags'] = []
       self.parseTags(cardId, cardDict['tags'])
-      cardDict['notes'] = []
-      self.parseNotes(card, cardDict['notes'])
       cardDict['keywords'] = []
-      cardDict['gid'] = str('%s:%s:%s' % (self.username, deck['id'], cardId))
 
       cardList.append(cardDict)
 
   '''
   Helper function to parse the notes of a card.
   '''
-  def parseNotes(self, card, noteList):
+  def parseNotes(self, deckId, card, noteList):
     note = card.note()
+    '''
+    #Tagging experiment, please ignore
+    if 'gid' not in note.items():
+      tag = '%s:%d' % (self.username, deckId)
+      note.addTag(tag)
+      #showInfo(note.stringTags())
+    note.flush()
+    '''
     for item in note.items():
       noteList.append(item)
 
