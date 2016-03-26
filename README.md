@@ -5,6 +5,24 @@ Python plugin for connecting to AnkiHub
 To install AnkiHub as a plugin, copy everything from the `src` folder into
 the `addons` folder of your local Anki installation.
 
+## A User Story
+Bob wants to study from Alice's Anki deck called DeckA. Alice logs onto the AnkiHub plugin
+and uploads DeckA. Then, Bob logs onto the AnkiHub website and searches for DeckA. He
+subscribes to the deck and then opens his local installation of Anki (henceforth called
+"vanilla Anki"). He enters his AnkiHub credentials on the plugin login window.
+
+After the plugin verifies his credentials, the backend of the plugin receives a list of his
+subscriptions from the server. Since one of these decks, DeckA, does not exist locally,
+the plugin imports DeckA using JSON data from the server. In addition, the plugin updates
+any subscribed decks that already exists locally.
+
+At this point, the plugin finishes loading the deck viewer window, which shows every local
+and subscribed deck (including DeckA). Next to subscribed decks (which includes uploaded
+decks that Bob owns) is a "Disconnect" button; it forks the deck if Bob is subscribed to it
+but does not own it, and it no longer sends updates if Bob is the deck originator.
+Next to local decks that have not been uploaded, there is an "Upload" button. If Bob pushes
+the "Uplaod" button for one of his decks, the button then changes to a "Disconnect" button.
+
 ## Development
 ### windowsAnkiRestart - Automated Anki Restarting
 This script restarts Anki automatically for you every time you save the plugin.
