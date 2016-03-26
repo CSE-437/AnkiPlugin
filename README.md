@@ -49,3 +49,11 @@ the file you specified. If that value is different from the timestamp it cached 
 windowsAnkiRestart copies the file to the addons directory specified in aniRestartPaths.txt.
 Then, it executes the supplied kill command and then opens Anki using the supplied path
 to the Anki executable.
+
+## The Inner Workings of Anki
+Anki structures cards that allows for a lot of customization but which complicates AnkiHub.
+There are 3 core concepts: note types, card types, and templates.
+
+(TODO finish this section)
+
+AnkiHub will not support any note types other than "Basic" and its default derivatives.
