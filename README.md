@@ -6,11 +6,11 @@ Anki addon for connecting to AnkiHub
 Table of Contents
 -----------------
 
-* [Installation][#installation]
-* [A User Story][#a-user-story]
+* [Installation](#installation)
+* [A User Story](#a-user-story)
 * What AnkiHub Doesn't Support (TODO)
-* [Development][#development]
-* [The Inner Workings of Anki][#the-inner-workings-of-anki]
+* [Development](#development)
+* [The Inner Workings of Anki](#the-inner-workings-of-anki)
 
 Installation
 ------------
@@ -40,6 +40,7 @@ the "Uplaod" button for one of his decks, the button then changes to a "Disconne
 
 Development
 -----------
+
 ### windowsAnkiRestart - Automated Anki Restarting
 This script restarts Anki automatically for you every time you save the plugin.
 
@@ -97,7 +98,6 @@ shared by both templates. Each note type can contain multiple card types (e.g. f
 studying both recall and recognition).
 
 ### A Real Life Example
-
 These screenshots are from a deck that uses a custom note type with multiple fields and 3 card
 types ("Recall", "Recognition", and "Comprehension"). As always, each card type contains 2
 templates and CSS styling.
