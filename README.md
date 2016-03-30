@@ -6,10 +6,11 @@ Anki addon for connecting to AnkiHub
 Table of Contents
 -----------------
 
-[Installation][#installation]
-[A User Story][#a-user-story]
-[Development][#development]
-[The Inner Workings of Anki][#the-inner-workings-of-anki]
+* [Installation][#installation]
+* [A User Story][#a-user-story]
+* What AnkiHub Doesn't Support (TODO)
+* [Development][#development]
+* [The Inner Workings of Anki][#the-inner-workings-of-anki]
 
 Installation
 ------------
@@ -84,6 +85,9 @@ fields: "Front" and "Back". Likewise, continuing our example of an English vocab
 define a note _type_ called "Eng Vocab (Simple)" with two fields:"Word" and "Definition". Or,
 perhpas, we decide we also want to add the part of speech. We could then define a new note type
 (e.g. "Eng Vocab (Complex)") with 3 fields: "Word", "Part of Speech", "Definition".
+
+Note that each field is guaranteed to be a string, but they may refer to multimedia files
+such as images or audio.
 
 **Templates** use HTML to define _where_ each field will be placed on the card.
 
