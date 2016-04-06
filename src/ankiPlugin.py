@@ -13,6 +13,9 @@ from aqt import mw
 from aqt.utils import showInfo
 # import all of the Qt GUI library
 from aqt.qt import *
+# import the text importer to import text files as decks
+from anki.importing import TextImporter
+
 ###############################################################
 #    Wrapper for QWidget to overwrite closeEvent function.    #
 ###############################################################
@@ -173,7 +176,7 @@ class AnkiHub:
 
   def uploadTranasactions(self):
     # GET request to ankihub.herokuapp.com/api/decks?name=deckName
-    print urllib2.urlopen("http://ankihub.herokuapp.com/api/decks?name=Default").read()
+    print urllib2.urlopen("%s%s" % (url, "/api/decks?name=Default")).read()
     # Get JSON copy of local deck (processDeck)
     # Pass JSON from request and local copy of deck to transactionCalculator
     # POST request to transations endpoint
@@ -265,8 +268,62 @@ class AnkiHub:
       showInfo('%s Request Successful!' % requestFrom)
     except HTTPError, e:
       showInfo(str('%s Error: %d - %s' % (requestFrom, e.code, e.read())))
+      print(str('%s Error: %d - %s' % (requestFrom, e.code, e.read())))
     except URLError, e:
       showInfo(str(e.args))
+      print(str(e.args))
+
+  '''
+  CSV to Anki deck importer. If the note type has multiple card types,
+  multiple cards will automatically be generated for each note.
+  '''
+  def importDeck(self):
+    file = r"C:\Users\Tyler\Documents\Anki\test.txt"
+    # select deck
+    did = mw.col.decks.id("ImportDeck")
+    model = self.addNewModel()
+
+    mw.col.decks.select(did)
+    # set note type for deck
+    deck = mw.col.decks.get(did)
+    deck['mid'] = model['id']
+    mw.col.decks.save(deck)
+
+    # Assign new deck to model
+    mw.col.models.setCurrent(model)
+    model['did'] = did
+    mw.col.models.save(model)
+
+    # import into the collection
+    ti = TextImporter(mw.col, file)
+    ti.initMapping()
+    ti.run()
+
+    mw.col.reset()
+    mw.reset()
+
+  '''
+  Add new custom note type, card type, and templates (collectively a "model").
+  '''
+  def addNewModel(self):
+    models = mw.col.models # models = note types
+    m = models.new("Test")
+    fm = models.newField("Foo")
+    models.addField(m, fm)
+    fm = models.newField("Bar")
+    models.addField(m, fm)
+    fm = models.newField("Baz")
+    models.addField(m, fm)
+    t = models.newTemplate("Card 1") # template = card type
+    t['qfmt'] = "{{Foo}}" # qfmt = front template
+    t['afmt'] = "{{FrontSide}}\n\n<hr id=answer>\n\n{{Bar}}" # afmt = back template
+    models.addTemplate(m, t)
+    t = models.newTemplate("Card 2")
+    t['qfmt'] = "{{Bar}}"
+    t['afmt'] = "{{FrontSide}}\n\n<hr id=answer>\n\n{{Baz}}"
+    models.addTemplate(m, t)
+    models.add(m)
+    return m
 
   #################################################
   #         Algorithms to serialize JSONs.        #
@@ -300,7 +357,7 @@ class AnkiHub:
   def initializeDeckValues(self, deckDict, deck):
     deckDict['sessionToken'] = self.sessionToken
     deckDict['gid'] = '%s:%d' % (self.username, deck['id'])
-    deckDict['did'] = deck['id']
+    deckDict['did'] = str(deck['id'])
     deckDict['description'] = deck['desc']
     deckDict['name'] = deck['name']
     deckDict['keywords'] = []
@@ -318,7 +375,8 @@ class AnkiHub:
     for cardId in cardIds:
       card = mw.col.getCard(cardId)
       cardDict = {}
-      cardDict['did'] = str('%s:%d' % (self.username, deck['id']))
+      cardDict['gid'] = str('%s:%d' % (self.username, deck['id']))
+      cardDict['did'] = str('%s' % ( deck['id']))
       cardDict['cid'] = str(cardId)
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
@@ -363,4 +421,8 @@ QCoreApplication.setAttribute(Qt.AA_X11InitThreads)
 ankiHub = AnkiHub()
 action = QAction('AnkiHub', mw)
 mw.connect(action, SIGNAL('triggered()'), ankiHub.initialize)
+mw.form.menuTools.addAction(action)
+
+action = QAction("AnkiHub Deck Import", mw)
+mw.connect(action, SIGNAL("triggered()"), ankiHub.importDeck)
 mw.form.menuTools.addAction(action)

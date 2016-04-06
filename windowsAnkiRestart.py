@@ -1,4 +1,4 @@
-import os, time, sys, time
+import os, time, sys, time, subprocess
 from shutil import copy
 
 paths_file = open('ankiRestartPaths.txt')
@@ -21,5 +21,6 @@ while 1:
 		copy(watched_file, addon_path)
 		os.system(kill_cmd)
 		os.startfile(anki_exe)
+		result = subprocess.check_output(anki_exe, shell=True)
 
 	time.sleep(1);

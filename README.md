@@ -1,11 +1,26 @@
-# AnkiHub
-Python plugin for connecting to AnkiHub
+AnkiHub
+=======
 
-## Installation
-To install AnkiHub as a plugin, copy everything from the `src` folder into
-the `addons` folder of your local Anki installation.
+Anki addon for connecting to AnkiHub
 
-## A User Story
+Table of Contents
+-----------------
+
+* [Installation](#installation)
+* [A User Story](#a-user-story)
+* What AnkiHub Doesn't Support (TODO)
+* [Development](#development)
+* [The Inner Workings of Anki](#the-inner-workings-of-anki)
+
+Installation
+------------
+
+Copy everything from the `src` folder into the `addons` folder of your local
+Anki installation.
+
+A User Story
+------------
+
 Bob wants to study from Alice's Anki deck called DeckA. Alice logs onto the AnkiHub plugin
 and uploads DeckA. Then, Bob logs onto the AnkiHub website and searches for DeckA. He
 subscribes to the deck and then opens his local installation of Anki (henceforth called
@@ -23,7 +38,9 @@ but does not own it, and it no longer sends updates if Bob is the deck originato
 Next to local decks that have not been uploaded, there is an "Upload" button. If Bob pushes
 the "Uplaod" button for one of his decks, the button then changes to a "Disconnect" button.
 
-## Development
+Development
+-----------
+
 ### windowsAnkiRestart - Automated Anki Restarting
 This script restarts Anki automatically for you every time you save the plugin.
 
@@ -50,10 +67,43 @@ windowsAnkiRestart copies the file to the addons directory specified in aniResta
 Then, it executes the supplied kill command and then opens Anki using the supplied path
 to the Anki executable.
 
-## The Inner Workings of Anki
+The Inner Workings of Anki
+--------------------------
+
+Official documentation is on Anki's [website][Anki Docs]
+
 Anki structures cards that allows for a lot of customization but which complicates AnkiHub.
-There are 3 core concepts: note types, card types, and templates.
+There are 4 concepts: notes, note types, templates, and card types.
 
-(TODO finish this section)
+**Notes** are the actual pieces information you want to learn. We colloquially call these "cards."
+For example, in a simple deck of English vocabulary, each vocab-definition pair would be a
+separate note.
 
-AnkiHub will not support any note types other than "Basic" and its default derivatives.
+**Note types** are Anki's way of modularizing note data. Each note type contains **fields**
+which define and standardize the information that each note contains. Fields are particularly
+useful for styling purposes (stay tuned). In the "Basic" (default) note type, there are two
+fields: "Front" and "Back". Likewise, continuing our example of an English vocab deck, we would
+define a note _type_ called "Eng Vocab (Simple)" with two fields:"Word" and "Definition". Or,
+perhpas, we decide we also want to add the part of speech. We could then define a new note type
+(e.g. "Eng Vocab (Complex)") with 3 fields: "Word", "Part of Speech", "Definition".
+
+Note that each field is guaranteed to be a string, but they may refer to multimedia files
+such as images or audio.
+
+**Templates** use HTML to define _where_ each field will be placed on the card.
+
+**Card types** are essentially wrappers for templates and styling. Each card type contains
+one template for the front and one for the back of the card. It also contains CSS styling
+shared by both templates. Each note type can contain multiple card types (e.g. for
+studying both recall and recognition).
+
+### A Real Life Example
+These screenshots are from a deck that uses a custom note type with multiple fields and 3 card
+types ("Recall", "Recognition", and "Comprehension"). As always, each card type contains 2
+templates and CSS styling.
+
+![Fields of custom note type](/img/fields_example.png?raw=true)
+
+![Card types for custom note type](/img/card_types_example.png?raw=true)
+
+[Anki Docs]: http://ankisrs.net/docs/manual.html
