@@ -35,7 +35,8 @@ class AnkiHub:
   '''
   Instance/global variables.
   '''
-  url = 'http://localhost:3000'
+  #url = 'http://localhost:3000'
+  url = 'http://ankihub.herokuapp.com'
   username = ''
   sessionToken = ''
   deckCol = []
@@ -380,7 +381,7 @@ class AnkiHub:
       cardDict['cid'] = str(cardId)
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
-      cardDict['notes'] = []
+      cardDict['notes'] = {}
       self.parseNotes(deck['id'], card, cardDict['notes'])
       cardDict['tags'] = []
       self.parseTags(cardId, cardDict['tags'])
@@ -401,8 +402,8 @@ class AnkiHub:
       #showInfo(note.stringTags())
     note.flush()
     '''
-    for item in note.items():
-      noteList.append(item)
+    for (name, value) in note.items():
+      noteList[name] = value
 
   '''
   Helper function to parse the tags of a card.
