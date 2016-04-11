@@ -587,8 +587,9 @@ class AnkiHub:
       cardDict['gid'] = str('%s:%d' % (self.username, deck['id']))
       cardDict['did'] = str('%s' % ( deck['id']))
       cardDict['cid'] = str(cardId)
-      cardDict['front'] = card.q()
-      cardDict['back'] = card.a()
+      cardDict['front'] = (card.template())['qfmt']
+      cardDict['back'] = (card.template())['afmt']
+      cardDict['style'] = card.css()
       cardDict['notes'] = {}
       self.parseNotes(deck['id'], card, cardDict['notes'])
       cardDict['tags'] = []
