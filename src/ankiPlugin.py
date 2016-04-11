@@ -35,7 +35,7 @@ class AnkiHub:
   '''
   Instance/global variables.
   '''
-  url = 'http://localhost:3000'
+  url = 'http://ankihub.herokuapp.com'
   username = ''
   sessionToken = ''
   deckCol = []
@@ -385,7 +385,7 @@ class AnkiHub:
       cardDict['tags'] = []
       self.parseTags(cardId, cardDict['tags'])
       cardDict['keywords'] = []
-
+      print(cardDict)
       cardList.append(cardDict)
 
   '''
