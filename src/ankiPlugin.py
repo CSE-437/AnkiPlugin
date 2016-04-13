@@ -181,6 +181,18 @@ class AnkiHub:
   #       Callback functions and API calls.         #
   ###################################################
 
+  def getTransactions(self, gid):
+    requestURL = self.url + 'api/decks/%s/transactions' % gid
+    try:
+      response = urlopen(requestURL)
+      jsonResponse = json.loads(response.read())
+      return jsonResponse
+
+    except HTTPError, e:
+      showInfo(str('Transaction Download Error: %d - %s' % (e.code, str(json.loads(e.read())))))
+    except URLError, e:
+      showInfo(str(e.args))
+
   def uploadTranasactions(self):
     # GET request to ankihub.herokuapp.com/api/decks?name=deckName
     print urllib2.urlopen("%s%s" % (url, "/api/decks?name=Default")).read()
@@ -572,8 +584,9 @@ class AnkiHub:
       cardDict['gid'] = str('%s:%d' % (self.username, deck['id']))
       cardDict['did'] = str('%s' % ( deck['id']))
       cardDict['cid'] = str(cardId)
-      cardDict['front'] = card.q()
-      cardDict['back'] = card.a()
+      cardDict['front'] = (card.template())['qfmt']
+      cardDict['back'] = (card.template())['afmt']
+      cardDict['style'] = card.css()
       cardDict['notes'] = {}
       self.parseNotes(deck['id'], card, cardDict['notes'])
       cardDict['tags'] = []
