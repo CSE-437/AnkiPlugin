@@ -15,6 +15,13 @@ from aqt.utils import showInfo
 from aqt.qt import *
 # import the text importer to import text files as decks
 from anki.importing import TextImporter
+# import cards
+import anki.cards
+#import anki.utils
+from anki.utils import intTime, timestampID, guid64
+#import copy for deepcopy
+import copy
+
 
 ###############################################################
 #    Wrapper for QWidget to overwrite closeEvent function.    #
@@ -180,6 +187,193 @@ class AnkiHub:
     # Get JSON copy of local deck (processDeck)
     # Pass JSON from request and local copy of deck to transactionCalculator
     # POST request to transations endpoint
+
+  def getCID(self, id):
+    return id.split(":")[2]
+  def getCardNote(self, data):
+    card = mw.col.getCard(self.getCID(data["id"]))
+    note = card.note(reload=True)
+    return (card,note)
+
+  def processTransactions_UPDATE(self, data):
+    card, note = self.getCardNote(data)
+    note.fields[0] = data["front"]
+    note.fields[1] = data["back"]
+    card.flush()
+    note.flush()
+  def processTransactions_aKEYWORDS(self, data):
+    pass
+  def processTransactions_rKEYWORDS(self, data):
+    pass
+  def processTransactions_cKEYWORDS(self, data):
+    pass
+  def processTransactions_aNOTES(self, data):
+    pass
+  def processTransactions_rNOTES(self, data):
+    pass
+  def processTransactions_cNOTES(self, data):
+    pass
+  def processTransactions_aTAGS(self, data):
+    card, note = self.getCardNote(data)
+    for i in data["tags"]:
+        note.addTag(i)
+    note.flush()
+  def processTransactions_rTAGS(self, data):
+    card, note = self.getCardNote(data)
+    for i in data["tags"]:
+        note.delTag(i)
+    note.flush()
+  def processTransactions_cTAGS(self, data):
+    card, note = self.getCardNote(data)
+    del note.tags[:]
+    note.flush()
+  def processTransactions_GETACTIONS(self, data):
+    pass
+  def processTransactions_DELETE(self, data):
+    mw.col.remCards([self.getCID(data["id"])], notes=True)
+    mw.col.decks.flush()
+
+
+  CARD_QUERIES = {"UPDATE":processTransactions_UPDATE, "aKEYWORDS":processTransactions_aKEYWORDS, "rKEYWORDS":processTransactions_rKEYWORDS, "cKEYWORDS":processTransactions_cKEYWORDS, "aNOTES":processTransactions_aNOTES, "rNOTES":processTransactions_rNOTES, "cNOTES":processTransactions_cNOTES, "aTAGS":processTransactions_aTAGS, "rTAGS":processTransactions_rTAGS, "cTAGS":processTransactions_cTAGS, "GETACTIONS":processTransactions_GETACTIONS, "DELETE":processTransactions_DELETE}
+  def processTransactions(self, transactions):
+    # transactions is an array
+    for t in transactions:
+        if t["query"] in self.CARD_QUERIES:
+            self.CARD_QUERIES[t["query"]](self, t["data"])
+        else:
+            pass # uh oh, unsupported query
+    mw.reset()
+
+
+  def getDID(self, gid):
+    return gid.split(":")[1]
+
+  def processDeckTransactions_FORK(self, data):
+    orig_did = self.getDID(data["gid"])
+    # orig_deck = mw.col.decks.get(orig_did)
+    new_did = mw.col.decks.id(data["name"])
+    new_deck = mw.col.decks.get(new_did)
+
+    for cid in mw.col.decks.cids(orig_did):
+        card = mw.col.getCard(cid)
+        note = card.note(reload=True)
+        model = note.model()
+        createNewModel = False # create new model?
+
+        if createNewModel:
+            new_model = mw.col.models.copy(model) # models.copy saves
+        new_note = copy.deepcopy(note)
+        new_note.col = note.col
+        new_note.id = timestampID(mw.col.db, "notes")
+        new_note.guid = guid64()
+        if createNewModel:
+            new_note._model = new_model
+            new_note.mid = new_model['id']
+        new_note.flush()
+        new_card = copy.deepcopy(card)
+        new_card.col = card.col
+        new_card.id = timestampID(mw.col.db, "cards")
+        new_card.crt = intTime()
+        new_card.did = new_did
+        new_card.nid = new_note.id
+        new_card.flush()
+    mw.col.decks.save(new_deck)
+    mw.col.decks.flush()
+
+  def processDeckTransactions_ADD(self, data):
+    card = anki.cards.Card(mw.col)
+    note = mw.col.newNote()
+    # use front/back or notes?
+    note.fields[0] = data["front"]
+    note.fields[1] = data["back"]
+    for i in data["tags"]:
+        note.addTag(i)
+    note.flush()
+    # set CID?
+    card.nid = note.id
+    card.ord = 0 # what the hell is ord?
+    card.did = self.getDID(data["gid"])
+    card.due = mw.col._dueForDid(card.did, 1)
+    card.flush()
+  def processDeckTransactions_REMOVE(self, data):
+    mw.col.remCards([self.getCID(data["id"])])
+  def processDeckTransactions_RENAME(self, data):
+    mw.col.decks.rename(mw.col.decks.get(self.getDID(data["gid"])), data["name"])
+  def processDeckTransactions_REDESC(self, data):
+    pass
+  def processDeckTransactions_GETACTIONS(self, data):
+    pass
+  def processDeckTransactions_DELETE(self, data):
+    mw.col.decks.rem(self.getDID(data["gid"]), cardsToo = True)
+  def processDeckTransactions_aKEYWORDS(self, data):
+    pass
+  def processDeckTransactions_rKEYWORDS(self, data):
+    pass
+  def processDeckTransactions_cKEYWORDS(self, data):
+    pass
+  def processDeckTransactions_REPUB(self, data):
+    pass
+
+
+  DECK_QUERIES = {"FORK":processDeckTransactions_FORK, "ADD":processDeckTransactions_ADD, "REMOVE":processDeckTransactions_REMOVE, "RENAME":processDeckTransactions_RENAME,"REDESC":processDeckTransactions_REDESC, "GETACTIONS":processDeckTransactions_GETACTIONS, "DELETE":processDeckTransactions_DELETE, "aKEYWORDS":processDeckTransactions_aKEYWORDS, "rKEYWORDS":processDeckTransactions_rKEYWORDS, "cKEYWORDS":processDeckTransactions_cKEYWORDS, "REPUB":processDeckTransactions_REPUB}
+  def processDeckTransactions(self, transactions):
+    # transactions is an array
+    for t in transactions:
+        if t["query"] in self.DECK_QUERIES:
+            self.DECK_QUERIES[t["query"]](self, t["data"])
+        else:
+            pass # uh oh, unsupported query
+    mw.reset()
+
+  def getAllDeckNames(self):
+    decks = mw.col.decks.all()
+    return "\n".join([i["name"] for i in decks])
+
+  def testTransactions(self):
+    # basic transaction = {"query":"", "data":{}}
+
+    # # test deck rename
+    # showInfo(self.getAllDeckNames())
+    # showInfo(str(mw.col.decks.id("forked", create=False)))
+    # transactions = [{"query":"RENAME", "data":{"gid":"joseph:1459643823643", "name":"renamed"}}]
+
+    # # test deck remove
+    # cid = "joseph:1459643823643:" + str(mw.col.db.first("select * from cards where did = ?", 1459643823643)[0])
+    # transactions = [{"query":"REMOVE", "data":{"id":cid}}]
+
+    # # test deck add
+    # transactions = [{"query":"ADD", "data":{"gid":"joseph:1459643823643", "front":"this is the front", "back":"this_is_the_back", "tags":["one_tag","two_tag","three_tags"]}}]
+
+    # # test deck fork
+    # transactions = [{"query":"FORK", "data":{"gid":"joseph:1459643823643", "name":"forked"}}]
+    # showInfo(str(mw.col.decks.id("forked", create=False)))
+
+    # # test deck remove
+    # transactions = [{"query":"DELETE", "data":{"gid":"joseph:1460136150946"}}]
+
+    # self.processDeckTransactions(transactions)
+
+
+    # # test card update
+    # showInfo(str(mw.col.decks.cids(1459643823643)[0]))
+    # transactions = [{"query":"UPDATE", "data":{"id":"joseph:1460136150946:1460136040703", "front":"updated front", "back":"updated_back"}}]
+
+    # # test card aTags
+    # transactions = [{"query":"aTAGS", "data":{"id":"joseph:1460136150946:1460136040703", "tags":["new_tag_1", "new_tag_2"]}}]
+
+    # # test card rTags
+    # transactions = [{"query":"rTAGS", "data":{"id":"joseph:1460136150946:1460136040703", "tags":["new_tag_1", "new_tag_2"]}}]
+
+    # # test card cTags
+    # transactions = [{"query":"cTAGS", "data":{"id":"joseph:1460136150946:1460136040703"}}]
+
+    # # test card delete
+    # transactions = [{"query":"DELETE", "data":{"id":"joseph:1460136150946:1460138220929"}}]
+
+    # self.processTransactions(transactions)
+
+    pass
+
 
   '''
   Callback function for Sync button. Uses multithreading to process POST requests to /api/decks/
@@ -380,7 +574,7 @@ class AnkiHub:
       cardDict['cid'] = str(cardId)
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
-      cardDict['notes'] = []
+      cardDict['notes'] = {}
       self.parseNotes(deck['id'], card, cardDict['notes'])
       cardDict['tags'] = []
       self.parseTags(cardId, cardDict['tags'])
@@ -401,8 +595,8 @@ class AnkiHub:
       #showInfo(note.stringTags())
     note.flush()
     '''
-    for item in note.items():
-      noteList.append(item)
+    for (name, value) in note.items():
+      noteList[name] = value
 
   '''
   Helper function to parse the tags of a card.
@@ -425,4 +619,8 @@ mw.form.menuTools.addAction(action)
 
 action = QAction("AnkiHub Deck Import", mw)
 mw.connect(action, SIGNAL("triggered()"), ankiHub.importDeck)
+mw.form.menuTools.addAction(action)
+
+action = QAction('Test transactions', mw)
+mw.connect(action, SIGNAL('triggered()'), ankiHub.testTransactions)
 mw.form.menuTools.addAction(action)

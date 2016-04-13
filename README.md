@@ -1,5 +1,4 @@
 AnkiHub
-=======
 
 Anki addon for connecting to AnkiHub
 
