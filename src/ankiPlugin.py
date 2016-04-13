@@ -394,8 +394,6 @@ class AnkiHub:
   def syncDeck(self, deck):
     # Temp Call to getTrans
     def syncDeckAction():
-      with open(r"C:\Users\Tyler\Documents\Anki\deck.json", 'w+') as file:
-        file.write(json.dumps(deck))
       requestURL = self.url + '/api/decks/'
       request = Request(requestURL, json.dumps(deck), {'Content-Type' : 'application/json'})
       syncThread = threading.Thread(target=self.processRequest, args=('Sync', request))
