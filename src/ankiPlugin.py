@@ -382,9 +382,7 @@ class AnkiHub:
   def syncDeck(self, deck):
     # Temp Call to getTrans
     def syncDeckAction():
-      requestURL = self.url + '/api/decks/'
-      request = Request(requestURL, json.dumps(deck), {'Content-Type' : 'application/json'})
-      syncThread = threading.Thread(target=self.processRequest, args=('Sync', request))
+      syncThread = threading.Thread(target=self.recursiveSync, args=('Sync', deck))
       loadThread = threading.Thread(target=self.createSyncScreen, args=(deck['name'], syncThread))
       try:
         syncThread.start()
@@ -456,18 +454,27 @@ class AnkiHub:
   '''
   Allows for general requests (both GET and POST) to be made asynchronously when used as target for threads. Currently only used for Sync.
   '''
-  def processRequest(self, requestFrom, request):
+  def recursiveSync(self, requestFrom, deck):
+    requestURL = self.url + '/api/decks/'
+    deckCopy = deck.copy()
+    deckCopy['children'] = []
+    for childDeck in deck['children']:
+      childResponse = self.recursiveSync(requestFrom, childDeck)
+      deckCopy['children'].append(childResponse['gid'])
+      
+    request = Request(requestURL, json.dumps(deckCopy), {'Content-Type' : 'application/json'})
     try:
       response = urlopen(request)
       jsonResponse = json.loads(response.read())
       showInfo('%s Request Successful!' % requestFrom)
+      return jsonResponse
     except HTTPError, e:
       showInfo(str('%s Error: %d - %s' % (requestFrom, e.code, e.read())))
-      print(str('%s Error: %d - %s' % (requestFrom, e.code, e.read())))
+      return {'gid' : 'error'}
     except URLError, e:
       showInfo(str(e.args))
-      print(str(e.args))
-
+      return {'gid' : 'error'}
+      
   '''
   CSV to Anki deck importer. If the note type has multiple card types,
   multiple cards will automatically be generated for each note.
