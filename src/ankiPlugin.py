@@ -470,6 +470,8 @@ class AnkiHub:
     requestURL = self.url + '/api/decks/'
     deckCopy = deck.copy()
     deckCopy['children'] = []
+    
+    #to ignore all children, comment out the following for-loop
     for childDeck in deck['children']:
       childResponse = self.recursiveSync(requestFrom, childDeck)
       deckCopy['children'].append(childResponse['gid'])
