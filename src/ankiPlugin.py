@@ -294,22 +294,24 @@ class AnkiHub:
         new_card.flush()
     mw.col.decks.save(new_deck)
     mw.col.decks.flush()
-  #??      
+  #TO-DO: Update this to match Tyler's new card schema
   def processDeckTransactions_ADD(self, data):
-    card = anki.cards.Card(mw.col)
-    note = mw.col.newNote()
-    # use front/back or notes?
-    note.fields[0] = data["data"]["front"]
-    note.fields[1] = data["data"]["back"]
-    for i in data["data"]["tags"]:
-        note.addTag(i)
-    note.flush()
-    # set CID?
-    card.nid = note.id
-    card.ord = 0 # what the hell is ord?
-    card.did = self.getDID(data["on"])
-    card.due = mw.col._dueForDid(card.did, 1)
-    card.flush()
+    showInfo(str(data))
+    for card in data["data"]["newCards"]:
+        card = anki.cards.Card(mw.col)
+        note = mw.col.newNote()
+        # use front/back or notes?
+        note.fields[0] = card["front"]
+        note.fields[1] = card["back"]
+        for i in card["tags"]:
+            note.addTag(i)
+        note.flush()
+        # set CID?
+        card.nid = note.id
+        card.ord = 0 # what the hell is ord?
+        card.did = self.getDID(data["on"])
+        card.due = mw.col._dueForDid(card.did, 1)
+        card.flush()
   #??
   def processDeckTransactions_REMOVE(self, data):
     mw.col.remCards([self.getCID(data["data"]["gid"])])
