@@ -248,13 +248,12 @@ class AnkiHub:
     mw.col.remCards([self.getCID(data["id"])], notes=True)
     mw.col.decks.flush()
   
-    
+  #untested with server  
   CARD_QUERIES = {"UPDATE":processTransactions_UPDATE, "aKEYWORDS":processTransactions_aKEYWORDS, "rKEYWORDS":processTransactions_rKEYWORDS, "cKEYWORDS":processTransactions_cKEYWORDS, "aNOTES":processTransactions_aNOTES, "rNOTES":processTransactions_rNOTES, "cNOTES":processTransactions_cNOTES, "aTAGS":processTransactions_aTAGS, "rTAGS":processTransactions_rTAGS, "cTAGS":processTransactions_cTAGS, "GETACTIONS":processTransactions_GETACTIONS, "DELETE":processTransactions_DELETE}
   def processTransactions(self, transactions):
     # transactions is an array
     for t in transactions:
         if t["query"] in self.CARD_QUERIES:
-            showInfo('hi')
             self.CARD_QUERIES[t["query"]](self, t["data"])
         else:
             pass # uh oh, unsupported query
@@ -263,11 +262,11 @@ class AnkiHub:
   
   def getDID(self, gid):
     return gid.split(":")[1]
-    
+  #??  
   def processDeckTransactions_FORK(self, data):
-    orig_did = self.getDID(data["gid"])
+    orig_did = self.getDID(data["on"])
     # orig_deck = mw.col.decks.get(orig_did)
-    new_did = mw.col.decks.id(data["name"])
+    new_did = mw.col.decks.id(data["data"]["name"])
     new_deck = mw.col.decks.get(new_did)
     
     for cid in mw.col.decks.cids(orig_did):
@@ -295,32 +294,36 @@ class AnkiHub:
         new_card.flush()
     mw.col.decks.save(new_deck)
     mw.col.decks.flush()
-        
+  #??      
   def processDeckTransactions_ADD(self, data):
     card = anki.cards.Card(mw.col)
     note = mw.col.newNote()
     # use front/back or notes?
-    note.fields[0] = data["front"]
-    note.fields[1] = data["back"]
-    for i in data["tags"]:
+    note.fields[0] = data["data"]["front"]
+    note.fields[1] = data["data"]["back"]
+    for i in data["data"]["tags"]:
         note.addTag(i)
     note.flush()
     # set CID?
     card.nid = note.id
     card.ord = 0 # what the hell is ord?
-    card.did = self.getDID(data["gid"])
+    card.did = self.getDID(data["on"])
     card.due = mw.col._dueForDid(card.did, 1)
     card.flush()
+  #??
   def processDeckTransactions_REMOVE(self, data):
-    mw.col.remCards([self.getCID(data["id"])])
+    mw.col.remCards([self.getCID(data["data"]["gid"])])
+  #works
   def processDeckTransactions_RENAME(self, data):
-    mw.col.decks.rename(mw.col.decks.get(self.getDID(data["gid"])), data["name"])
+    showInfo(str(data))
+    mw.col.decks.rename(mw.col.decks.get(self.getDID(data["on"])), data["data"]["name"])
   def processDeckTransactions_REDESC(self, data):
     pass
   def processDeckTransactions_GETACTIONS(self, data):
     pass
+  #??
   def processDeckTransactions_DELETE(self, data):
-    mw.col.decks.rem(self.getDID(data["gid"]), cardsToo = True)
+    mw.col.decks.rem(self.getDID(data["on"]), cardsToo = True)
   def processDeckTransactions_aKEYWORDS(self, data):
     pass
   def processDeckTransactions_rKEYWORDS(self, data):
@@ -334,11 +337,14 @@ class AnkiHub:
   DECK_QUERIES = {"FORK":processDeckTransactions_FORK, "ADD":processDeckTransactions_ADD, "REMOVE":processDeckTransactions_REMOVE, "RENAME":processDeckTransactions_RENAME,"REDESC":processDeckTransactions_REDESC, "GETACTIONS":processDeckTransactions_GETACTIONS, "DELETE":processDeckTransactions_DELETE, "aKEYWORDS":processDeckTransactions_aKEYWORDS, "rKEYWORDS":processDeckTransactions_rKEYWORDS, "cKEYWORDS":processDeckTransactions_cKEYWORDS, "REPUB":processDeckTransactions_REPUB}
   def processDeckTransactions(self, transactions):
     # transactions is an array
+    # need to sort transactions by timestamp/grouping here
     for t in transactions:
         if t["query"] in self.DECK_QUERIES:
-            self.DECK_QUERIES[t["query"]](self, t["data"])
+            showInfo(str(t['query']))
+            self.DECK_QUERIES[t["query"]](self, t)
         else:
             pass # uh oh, unsupported query
+    showInfo('about to reset?')
     mw.reset()
     
   def getAllDeckNames(self):
@@ -491,7 +497,7 @@ class AnkiHub:
     except HTTPError, e:
       if e.code == 400:
         transactions = self.getTransactions(deckCopy['gid'])
-        self.processTransactions(transactions)
+        self.processDeckTransactions(transactions)
         showInfo('Finished processing transactions')
       return {'gid' : deckCopy['gid']}
     except URLError, e:
