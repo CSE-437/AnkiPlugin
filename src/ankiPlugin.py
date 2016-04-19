@@ -183,15 +183,17 @@ class AnkiHub:
   ###################################################
 
   def getTransactions(self, gid):
-    requestURL = self.url + 'api/decks/%s/transactions' % gid
+    requestURL = self.url + '/api/decks/%s/transactions/' % gid
+    request = Request(requestURL, json.dumps({'username' : self.username, 'sessionToken' : self.sessionToken}), {'Content-Type' : 'application/json'})
     try:
-      response = urlopen(requestURL)
+      response = urlopen(request)
       jsonResponse = json.loads(response.read())
       return jsonResponse
 
     except HTTPError, e:
-      showInfo(str('Transaction Download Error: %d - %s' % (e.code, str(json.loads(e.read())))))
+      showInfo(str('Transaction Download Error: %d - %s' % (e.code, e.read())))
     except URLError, e:
+      showInfo('url error?')
       showInfo(str(e.args))
 
   def uploadTranasactions(self):
@@ -252,6 +254,7 @@ class AnkiHub:
     # transactions is an array
     for t in transactions:
         if t["query"] in self.CARD_QUERIES:
+            showInfo('hi')
             self.CARD_QUERIES[t["query"]](self, t["data"])
         else:
             pass # uh oh, unsupported query
@@ -394,11 +397,14 @@ class AnkiHub:
   def syncDeck(self, deck):
     # Temp Call to getTrans
     def syncDeckAction():
-      syncThread = threading.Thread(target=self.recursiveSync, args=('Sync', deck))
-      loadThread = threading.Thread(target=self.createSyncScreen, args=(deck['name'], syncThread))
+      #In order for transactions to work, threading must be turned off
+      
+      #syncThread = threading.Thread(target=self.recursiveSync, args=('Sync', deck))
+      #loadThread = threading.Thread(target=self.createSyncScreen, args=(deck['name'], syncThread))
       try:
-        syncThread.start()
-        loadThread.start()
+        #syncThread.start()
+        #loadThread.start()
+        self.recursiveSync('Sync', deck)
       except:
         showInfo('Could not start sync thread')
     return syncDeckAction
@@ -483,8 +489,11 @@ class AnkiHub:
       showInfo('%s Request Successful!' % requestFrom)
       return jsonResponse
     except HTTPError, e:
-      showInfo(str('%s Error: %d - %s' % (requestFrom, e.code, e.read())))
-      return {'gid' : 'error'}
+      if e.code == 400:
+        transactions = self.getTransactions(deckCopy['gid'])
+        self.processTransactions(transactions)
+        showInfo('Finished processing transactions')
+      return {'gid' : deckCopy['gid']}
     except URLError, e:
       showInfo(str(e.args))
       return {'gid' : 'error'}
