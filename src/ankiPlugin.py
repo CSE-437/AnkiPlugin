@@ -1,11 +1,20 @@
 from AnkiHubLibs import webbrowser
 
+from AnkiHubLibs import AnkiHub
+AnkiHubServer = AnkiHub.AnkiHubServer
+configFileName = AnkiHub.configFileName
+cookieFileName = AnkiHub.cookieFileName
+
+import pickle
+
 from urllib2 import Request, urlopen, URLError, HTTPError
 from pprint import pprint
 import json
 import urllib
 import threading
 import time
+import pickle
+import os
 
 # import the main window object (mw) from ankiqt
 from aqt import mw
@@ -42,10 +51,10 @@ class AnkiHub:
   '''
   Instance/global variables.
   '''
-  url = 'http://ankihub.herokuapp.com'
+  deckCol = []
+  server = None
   username = ''
   sessionToken = ''
-  deckCol = []
 
   '''
   Initial entry point of function. Should be the only function called by global.
@@ -58,8 +67,8 @@ class AnkiHub:
   Destructor function to clean data when closing AnkiHub window.
   '''
   def terminate(self):
-    self.username = ''
-    sessionToken = ''
+    self.terminate()
+    self.server.terminate()
     self.deckCol = []
 
   ####################################################################################
@@ -182,10 +191,8 @@ class AnkiHub:
   ###################################################
 
   def getTransactions(self, gid):
-    requestURL = self.url + 'api/decks/%s/transactions' % gid
     try:
-      response = urlopen(requestURL)
-      jsonResponse = json.loads(response.read())
+      jsonResponse = self.server.getTransactions()
       return jsonResponse
 
     except HTTPError, e:
@@ -193,9 +200,15 @@ class AnkiHub:
     except URLError, e:
       showInfo(str(e.args))
 
-  def uploadTranasactions(self):
+  def uploadTranasactions(self, gid, transactions):
     # GET request to ankihub.herokuapp.com/api/decks?name=deckName
-    print urllib2.urlopen("%s%s" % (url, "/api/decks?name=Default")).read()
+    try:
+        jsonResponse = self.server.postTransactions(gid, transations)
+    except HTTPError, e:
+        showInfo(str('Transaction Upload Error: %d - %s' % (e.code, str(json.loads(e.read())))))
+    except URLError, e:
+        showInfo(str(e.args))
+
     # Get JSON copy of local deck (processDeck)
     # Pass JSON from request and local copy of deck to transactionCalculator
     # POST request to transations endpoint
@@ -393,10 +406,9 @@ class AnkiHub:
   def syncDeck(self, deck):
     # Temp Call to getTrans
     def syncDeckAction():
-      requestURL = self.url + '/api/decks/'
-      request = Request(requestURL, json.dumps(deck), {'Content-Type' : 'application/json'})
-      syncThread = threading.Thread(target=self.processRequest, args=('Sync', request))
+      syncThread = threading.Thread(target=self.server.uploadDeck, args=(json.dumps(deck)))
       loadThread = threading.Thread(target=self.createSyncScreen, args=(deck['name'], syncThread))
+      self.server.uploadDeck(json.dumps(deck))
       try:
         syncThread.start()
         loadThread.start()
@@ -420,17 +432,11 @@ class AnkiHub:
     def connectAction():
       self.createLoadingScreen()
 
-      self.username = mw.login.username.text()
-      password = mw.login.password.text()
-      loginJson = {'username' : self.username, 'password' : password}
-
-      # Sends POST request for login or signup
-      requestURL = self.url + '/api/users/' + endpoint
-      req = Request(requestURL, json.dumps(loginJson), {'Content-Type' : 'application/json'})
-
       try:
-        response = urlopen(req)
-        jsonResponse = json.loads(response.read())
+        if endpoint == 'signup/':
+            jsonResponse = self.server.signup(mw.login.username.text(), mw.login.password.text())
+        else:
+            jsonResponse = self.server.login(mw.login.username.text(), mw.login.password.text())
         mw.login.close()
         self.username = jsonResponse['user']['username']
         self.sessionToken = jsonResponse['user']['sessionToken']
@@ -452,8 +458,7 @@ class AnkiHub:
       requestURL = self.url + '/api/decks/'
 
       try:
-        response = urlopen(requestURL+sub)
-        jsonResponse = json.loads(response.read())
+        jsonResponse = self.server(getSubscribedDecks(subs))
 
         # Uncomment this line to see data in retrieved deck
         #showInfo('Success! Result is ' + str(jsonResponse[0]))
@@ -626,6 +631,16 @@ class AnkiHub:
 #############################################################
 QCoreApplication.setAttribute(Qt.AA_X11InitThreads)
 ankiHub = AnkiHub()
+if os.path.isfile(configFileName):
+    cD = pickle.load(open(configFileName, "rb"))
+else:
+    cD = {}
+if os.path.isfile(cookieFileName):
+    cook = pickle.load(open(cookieFileName, "rb"))
+    ankiHub.server = AnkiHubServer(cD, cook)
+else:
+    ankiHub.server = AnkiHubServer(cD)
+
 action = QAction('AnkiHub', mw)
 mw.connect(action, SIGNAL('triggered()'), ankiHub.initialize)
 mw.form.menuTools.addAction(action)
