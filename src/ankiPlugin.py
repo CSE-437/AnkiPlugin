@@ -1,6 +1,7 @@
 from AnkiHubLibs import webbrowser
-
-from AnkiHubLibs import AnkiHub
+import sys
+sys.path.append("./AnkiHubLibs")
+import AnkiHub
 AnkiHubServer = AnkiHub.AnkiHubServer
 configFileName = AnkiHub.configFileName
 cookieFileName = AnkiHub.cookieFileName
@@ -192,7 +193,7 @@ class AnkiHub:
 
   def getTransactions(self, gid):
     try:
-      jsonResponse = self.server.getTransactions()
+      jsonResponse = self.server.getTransactions(gid)
       return jsonResponse
 
     except HTTPError, e:
@@ -258,10 +259,11 @@ class AnkiHub:
     mw.col.remCards([self.getCID(data["id"])], notes=True)
     mw.col.decks.flush()
 
-
+  #untested with server
   CARD_QUERIES = {"UPDATE":processTransactions_UPDATE, "aKEYWORDS":processTransactions_aKEYWORDS, "rKEYWORDS":processTransactions_rKEYWORDS, "cKEYWORDS":processTransactions_cKEYWORDS, "aNOTES":processTransactions_aNOTES, "rNOTES":processTransactions_rNOTES, "cNOTES":processTransactions_cNOTES, "aTAGS":processTransactions_aTAGS, "rTAGS":processTransactions_rTAGS, "cTAGS":processTransactions_cTAGS, "GETACTIONS":processTransactions_GETACTIONS, "DELETE":processTransactions_DELETE}
   def processTransactions(self, transactions):
     # transactions is an array
+    transactions.sort(cmp=compare)
     for t in transactions:
         if t["query"] in self.CARD_QUERIES:
             self.CARD_QUERIES[t["query"]](self, t["data"])
@@ -272,11 +274,11 @@ class AnkiHub:
 
   def getDID(self, gid):
     return gid.split(":")[1]
-
+  #??
   def processDeckTransactions_FORK(self, data):
-    orig_did = self.getDID(data["gid"])
+    orig_did = self.getDID(data["on"])
     # orig_deck = mw.col.decks.get(orig_did)
-    new_did = mw.col.decks.id(data["name"])
+    new_did = mw.col.decks.id(data["data"]["name"])
     new_deck = mw.col.decks.get(new_did)
 
     for cid in mw.col.decks.cids(orig_did):
@@ -304,32 +306,38 @@ class AnkiHub:
         new_card.flush()
     mw.col.decks.save(new_deck)
     mw.col.decks.flush()
-
+  #TO-DO: Update this to match Tyler's new card schema
   def processDeckTransactions_ADD(self, data):
-    card = anki.cards.Card(mw.col)
-    note = mw.col.newNote()
-    # use front/back or notes?
-    note.fields[0] = data["front"]
-    note.fields[1] = data["back"]
-    for i in data["tags"]:
-        note.addTag(i)
-    note.flush()
-    # set CID?
-    card.nid = note.id
-    card.ord = 0 # what the hell is ord?
-    card.did = self.getDID(data["gid"])
-    card.due = mw.col._dueForDid(card.did, 1)
-    card.flush()
+    showInfo(str(data))
+    for card in data["data"]["newCards"]:
+        card = anki.cards.Card(mw.col)
+        note = mw.col.newNote()
+        # use front/back or notes?
+        note.fields[0] = card["front"]
+        note.fields[1] = card["back"]
+        for i in card["tags"]:
+            note.addTag(i)
+        note.flush()
+        # set CID?
+        card.nid = note.id
+        card.ord = 0 # what the hell is ord?
+        card.did = self.getDID(data["on"])
+        card.due = mw.col._dueForDid(card.did, 1)
+        card.flush()
+  #??
   def processDeckTransactions_REMOVE(self, data):
-    mw.col.remCards([self.getCID(data["id"])])
+    mw.col.remCards([self.getCID(data["data"]["gid"])])
+  #works
   def processDeckTransactions_RENAME(self, data):
-    mw.col.decks.rename(mw.col.decks.get(self.getDID(data["gid"])), data["name"])
+    showInfo(str(data))
+    mw.col.decks.rename(mw.col.decks.get(self.getDID(data["on"])), data["data"]["name"])
   def processDeckTransactions_REDESC(self, data):
     pass
   def processDeckTransactions_GETACTIONS(self, data):
     pass
+  #??
   def processDeckTransactions_DELETE(self, data):
-    mw.col.decks.rem(self.getDID(data["gid"]), cardsToo = True)
+    mw.col.decks.rem(self.getDID(data["on"]), cardsToo = True)
   def processDeckTransactions_aKEYWORDS(self, data):
     pass
   def processDeckTransactions_rKEYWORDS(self, data):
@@ -343,11 +351,15 @@ class AnkiHub:
   DECK_QUERIES = {"FORK":processDeckTransactions_FORK, "ADD":processDeckTransactions_ADD, "REMOVE":processDeckTransactions_REMOVE, "RENAME":processDeckTransactions_RENAME,"REDESC":processDeckTransactions_REDESC, "GETACTIONS":processDeckTransactions_GETACTIONS, "DELETE":processDeckTransactions_DELETE, "aKEYWORDS":processDeckTransactions_aKEYWORDS, "rKEYWORDS":processDeckTransactions_rKEYWORDS, "cKEYWORDS":processDeckTransactions_cKEYWORDS, "REPUB":processDeckTransactions_REPUB}
   def processDeckTransactions(self, transactions):
     # transactions is an array
+    # need to sort transactions by timestamp/grouping here
+    transactions.sort(cmp=compare)
     for t in transactions:
         if t["query"] in self.DECK_QUERIES:
-            self.DECK_QUERIES[t["query"]](self, t["data"])
+            showInfo(str(t['query']))
+            self.DECK_QUERIES[t["query"]](self, t)
         else:
             pass # uh oh, unsupported query
+    showInfo('about to reset?')
     mw.reset()
 
   def getAllDeckNames(self):
@@ -399,21 +411,22 @@ class AnkiHub:
 
     pass
 
-
   '''
   Callback function for Sync button. Uses multithreading to process POST requests to /api/decks/
   '''
   def syncDeck(self, deck):
     # Temp Call to getTrans
     def syncDeckAction():
-      syncThread = threading.Thread(target=self.server.uploadDeck, args=(json.dumps(deck)))
-      loadThread = threading.Thread(target=self.createSyncScreen, args=(deck['name'], syncThread))
-      self.server.uploadDeck(json.dumps(deck))
-      try:
-        syncThread.start()
-        loadThread.start()
-      except:
-        showInfo('Could not start sync thread')
+      #In order for transactions to work, threading must be turned off
+
+      #syncThread = threading.Thread(target=self.recursiveSync, args=('Sync', deck))
+      #loadThread = threading.Thread(target=self.createSyncScreen, args=(deck['name'], syncThread))
+      #try:
+        #syncThread.start()
+        #loadThread.start()
+      self.recursiveSync('Sync', deck)
+      #except:
+        #showInfo('Could not start sync thread')
     return syncDeckAction
 
   '''
@@ -432,11 +445,15 @@ class AnkiHub:
     def connectAction():
       self.createLoadingScreen()
 
+      self.username = mw.login.username.text()
+      password = mw.login.password.text()
+
       try:
-        if endpoint == 'signup/':
-            jsonResponse = self.server.signup(mw.login.username.text(), mw.login.password.text())
+        jsonResponse = None
+        if 'login' in endpoint:
+            jsonResponse = self.server.login(self.username, password)
         else:
-            jsonResponse = self.server.login(mw.login.username.text(), mw.login.password.text())
+            jsonResponse = self.server.signup(self.username, password)
         mw.login.close()
         self.username = jsonResponse['user']['username']
         self.sessionToken = jsonResponse['user']['sessionToken']
@@ -449,6 +466,7 @@ class AnkiHub:
       except URLError, e:
         showInfo(str(e.args))
     return connectAction
+
 
   '''
   GET request to get decks that a user is subscribed to.
@@ -485,6 +503,24 @@ class AnkiHub:
       print(str(e.args))
 
   '''
+  Allows for general requests (both GET and POST) to be made asynchronously when used as target for threads. Currently only used for Sync.
+  '''
+  def recursiveSync(self, requestFrom, deck):
+    deckCopy = deck.copy()
+    try:
+      jsonResponse = self.server.recursiveSync(requestFrom, deck)
+      showInfo('%s Request Successful!' % requestFrom)
+      return jsonResponse
+    except HTTPError, e:
+      if e.code == 400:
+        transactions = self.getTransactions(deckCopy['gid'])
+        self.processDeckTransactions(transactions)
+        showInfo('Finished processing transactions')
+      return {'gid' : deckCopy['gid']}
+    except URLError, e:
+      showInfo(str(e.args))
+      return {'gid' : 'error'}
+  '''
   CSV to Anki deck importer. If the note type has multiple card types,
   multiple cards will automatically be generated for each note.
   '''
@@ -512,6 +548,7 @@ class AnkiHub:
 
     mw.col.reset()
     mw.reset()
+
 
   '''
   Add new custom note type, card type, and templates (collectively a "model").
@@ -597,7 +634,7 @@ class AnkiHub:
       cardDict['tags'] = []
       self.parseTags(cardId, cardDict['tags'])
       cardDict['keywords'] = []
-      print(cardDict)
+
       cardList.append(cardDict)
 
   '''
@@ -629,6 +666,18 @@ class AnkiHub:
 #############################################################
 #       Anki runs from here and calls our functions.        #
 #############################################################
+def compare(trans1, trans2):
+  if trans1['updatedAt'] < trans2['updatedAt']:
+    return -1
+  elif trans1['updatedAt'] > trans2['updatedAt']:
+    return 1
+  elif trans1['index'] < trans2['index']:
+    return -1
+  elif trans1['index'] > trans2['index']:
+    return 1
+  else:
+    return 0
+
 QCoreApplication.setAttribute(Qt.AA_X11InitThreads)
 ankiHub = AnkiHub()
 if os.path.isfile(configFileName):

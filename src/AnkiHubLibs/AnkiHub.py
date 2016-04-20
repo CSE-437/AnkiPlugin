@@ -3,6 +3,7 @@ import urllib
 import Cookie
 import pickle
 import json
+import datetime
 
 configFileName = "ankiHubSettings.p"
 cookieFileName = "ankiHubCookies.p"
@@ -15,25 +16,29 @@ class AnkiHubServer:
     sessionToken = ''
     configDict = dict()
     cookie = None
+    logFile = None
     def __init__(self, configDict, cookie = Cookie.SimpleCookie()):
         self.cookie = cookie
         self.configDict = configDict
         me = self.whoami()
+        logFile = open('AnkiHubLog%s.txt', "a+")
         if me.get('sessionToken') and me.get('username'):
             self.username= me['username']
             self.sessionToken = me['sessionToken']
 
+    def log(self, str):
+        logFile.write("[%s]: %s"%(datetime.datetime.now(), str))
     def terminate(self):
         self.username = ''
         self.sessionToken = ''
+        logFile.close()
         pickle.dump(self.configDict, open(configFileName, "wb+"))
         pickle.dump(self.cookie, open(cookieFileName, "wb+"))
 
     def uploadDeck(self, deckJson):
-        data_encoded = urllib.urlencode(deckJson)
         req = urllib2.Request('%s/api/decks'%(self.url))
         req.add_header('cookie', self.cookie)
-        urllib2.urlopen(req, data_encoded)
+        self.log(str(urllib2.urlopen(req, deckJson).read()))
 
     def getTransactions(self, gid):
         req = urllib2.Request('%s/api/decks/%s/transactions' %(self.url,gid))
@@ -88,6 +93,7 @@ class AnkiHubServer:
         req = urllib2.Request('%s/api/users/whoami'%self.url)
         req.add_header('cookie', self.cookie)
         return json.loads(urllib2.urlopen(req).read())
+
     def getSubscribedDecks(self, subs):
         decks = []
         for sub in subs:
@@ -98,3 +104,20 @@ class AnkiHubServer:
                  decks.append(jsonResponse[0])
 
         return decks
+        '''
+      Allows for general requests (both GET and POST) to be made asynchronously when used as target for threads. Currently only used for Sync.
+      '''
+    def recursiveSync(self, requestFrom, deck):
+        deckCopy = deck.copy()
+        deckCopy['children'] = []
+
+        #to ignore all children, comment out the following for-loop
+        for childDeck in deck['children']:
+            childResponse = self.recursiveSync(requestFrom, childDeck)
+            deckCopy['children'].append(childResponse['gid'])
+
+        data_encoded = json.dumps(deckCopy)
+        req = urllib2.Request('%s/api/decks'%self.url)
+        req.add_header('cookie', self.cookie)
+        response = urllib2.urlopen(req, data_encoded)
+        return json.loads(response.read())
