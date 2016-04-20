@@ -118,6 +118,11 @@ class AnkiHub:
     mw.settings.redirect.clicked.connect(self.redirect())
     mw.settings.redirect.move(440, 460)
 
+    # Deck download
+    mw.settings.download = QPushButton('Download a Deck', mw.settings)
+    mw.settings.download.clicked.connect(self.createDeckImportWindow())
+    mw.settings.download.move(400, 500)
+
     mw.settings.show()
 
   '''
@@ -505,12 +510,71 @@ class AnkiHub:
     except URLError, e:
       showInfo(str(e.args))
       return {'gid' : 'error'}
-      
+
+  '''
+  Kicks off deck import process
+  '''
+  def importDeck(self):
+    self.createDeckImportWindow()
+
+  '''
+  Window for inputting deck download link
+  '''
+  def createDeckImportWindow(self):
+    mw.download = QWidget()
+    mw.download.resize(500, 250);
+    mw.download.setWindowTitle('Download Deck from AnkiHub')
+
+    mw.download.instructions = QLabel('Please input download link.', mw.download)
+    mw.download.instructions.move(30, 30)
+
+    mw.download.linkLabel = QLabel('Link:', mw.download)
+    mw.download.linkLabel.move(30, 100)
+    mw.download.link = QLineEdit(mw.download)
+    mw.download.link.resize(300,30)
+    mw.download.link.move(150, 100)
+
+    mw.download.submit = QPushButton('download', mw.download)
+    mw.download.submit.move(300,200)
+    mw.download.submit.clicked.connect(self.downloadDeck())
+
+    mw.download.show()
+
+  '''
+  GET request to download link
+  '''
+  def downloadDeck(self):
+    def connectAction():
+      self.createLoadingScreen()
+
+      requestURL = mw.download.link.text()
+
+      req = Request(requestURL, None, {'Content-Type' : 'application/json'})
+
+      try:
+        response = urlopen(req)
+
+        # Write to file
+        with open("%s.txt" % requestURL) as f:
+          f.write(response)
+
+        mw.download.close()
+        showInfo('Success! Deck downloaded')
+        mw.loading.close()
+
+        #self.importDeckFromCSV()
+      except HTTPError, e:
+        showInfo(str('Login Error: %d - %s' % (e.code, json.loads(e.read()))))
+      except URLError, e:
+        showInfo(str(e.args))
+    return connectAction
+
+
   '''
   CSV to Anki deck importer. If the note type has multiple card types,
   multiple cards will automatically be generated for each note.
   '''
-  def importDeck(self):
+  def importDeckFromCSV(self):
     file = r"C:\Users\Tyler\Documents\Anki\test.txt"
     # select deck
     did = mw.col.decks.id("ImportDeck")
@@ -657,10 +721,7 @@ action = QAction('AnkiHub', mw)
 mw.connect(action, SIGNAL('triggered()'), ankiHub.initialize)
 mw.form.menuTools.addAction(action)
 
+# Import a deck from AnkiHub
 action = QAction("AnkiHub Deck Import", mw)
 mw.connect(action, SIGNAL("triggered()"), ankiHub.importDeck)
-mw.form.menuTools.addAction(action)
-
-action = QAction('Test transactions', mw)
-mw.connect(action, SIGNAL('triggered()'), ankiHub.testTransactions)
 mw.form.menuTools.addAction(action)
