@@ -253,10 +253,11 @@ class AnkiHub:
     mw.col.remCards([self.getCID(data["id"])], notes=True)
     mw.col.decks.flush()
   
-  #untested with server  
+  #untested with server
   CARD_QUERIES = {"UPDATE":processTransactions_UPDATE, "aKEYWORDS":processTransactions_aKEYWORDS, "rKEYWORDS":processTransactions_rKEYWORDS, "cKEYWORDS":processTransactions_cKEYWORDS, "aNOTES":processTransactions_aNOTES, "rNOTES":processTransactions_rNOTES, "cNOTES":processTransactions_cNOTES, "aTAGS":processTransactions_aTAGS, "rTAGS":processTransactions_rTAGS, "cTAGS":processTransactions_cTAGS, "GETACTIONS":processTransactions_GETACTIONS, "DELETE":processTransactions_DELETE}
   def processTransactions(self, transactions):
     # transactions is an array
+    transactions.sort(cmp=compare)
     for t in transactions:
         if t["query"] in self.CARD_QUERIES:
             self.CARD_QUERIES[t["query"]](self, t["data"])
@@ -345,6 +346,7 @@ class AnkiHub:
   def processDeckTransactions(self, transactions):
     # transactions is an array
     # need to sort transactions by timestamp/grouping here
+    transactions.sort(cmp=compare)
     for t in transactions:
         if t["query"] in self.DECK_QUERIES:
             showInfo(str(t['query']))
@@ -414,12 +416,12 @@ class AnkiHub:
       
       #syncThread = threading.Thread(target=self.recursiveSync, args=('Sync', deck))
       #loadThread = threading.Thread(target=self.createSyncScreen, args=(deck['name'], syncThread))
-      try:
+      #try:
         #syncThread.start()
         #loadThread.start()
-        self.recursiveSync('Sync', deck)
-      except:
-        showInfo('Could not start sync thread')
+      self.recursiveSync('Sync', deck)
+      #except:
+        #showInfo('Could not start sync thread')
     return syncDeckAction
 
   '''
@@ -715,6 +717,19 @@ class AnkiHub:
 #############################################################
 #       Anki runs from here and calls our functions.        #
 #############################################################
+def compare(trans1, trans2):
+  if trans1['updatedAt'] < trans2['updatedAt']:
+    return -1
+  elif trans1['updatedAt'] > trans2['updatedAt']:
+    return 1
+  elif trans1['index'] < trans2['index']:
+    return -1
+  elif trans1['index'] > trans2['index']:
+    return 1
+  else:
+    return 0
+
+
 QCoreApplication.setAttribute(Qt.AA_X11InitThreads)
 ankiHub = AnkiHub()
 action = QAction('AnkiHub', mw)
