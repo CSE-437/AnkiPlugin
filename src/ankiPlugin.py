@@ -256,7 +256,6 @@ class AnkiHub:
         self.sessionToken = jsonResponse['user']['sessionToken']
         showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
         mw.loading.close()
-        showInfo(str(jsonResponse['user']['subscriptions']))
         self.getSubscribeDecks(jsonResponse['user']['subscriptions'])
         self.processDecks()
         self.createSettings()
@@ -332,7 +331,7 @@ class AnkiHub:
   def initializeDeckValues(self, deckDict, deck):
     deckDict['sessionToken'] = self.sessionToken
     deckDict['gid'] = '%s:%d' % (self.username, deck['id'])
-    deckDict['did'] = deck['id']
+    deckDict['did'] = str(deck['id'])
     deckDict['description'] = deck['desc']
     deckDict['name'] = deck['name']
     deckDict['keywords'] = []
@@ -355,8 +354,8 @@ class AnkiHub:
       cardDict['cid'] = str(cardId)
       cardDict['front'] = card.q()
       cardDict['back'] = card.a()
-      cardDict['notes'] = []
-      self.parseNotes(deck['id'], card, cardDict['notes'])
+      cardDict['notes'] = card.note()
+      #self.parseNotes(deck['id'], card, cardDict['notes'])
       cardDict['tags'] = []
       self.parseTags(cardId, cardDict['tags'])
       cardDict['keywords'] = []
