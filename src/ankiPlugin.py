@@ -458,6 +458,7 @@ class AnkiHub:
         self.username = jsonResponse['user']['username']
         self.sessionToken = jsonResponse['user']['sessionToken']
         showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
+        self.getSubscribeDecks(jsonResponse['user']['subscriptions'])
         self.processDecks()
         mw.loading.close()
         self.createSettings()
@@ -472,11 +473,13 @@ class AnkiHub:
   GET request to get decks that a user is subscribed to.
   '''
   def getSubscribeDecks(self, subs):
+  
     for sub in subs:
-      requestURL = self.url + '/api/decks/'
+      requestURL = '%s/api/decks/%s?username=%s&sessionToken=%s' % (self.url, sub, self.username, self.sessionToken)
 
       try:
-        jsonResponse = self.server(getSubscribedDecks(subs))
+        response = urlopen(requestURL)
+        jsonResponse = json.loads(response.read())
 
         # Uncomment this line to see data in retrieved deck
         #showInfo('Success! Result is ' + str(jsonResponse[0]))
