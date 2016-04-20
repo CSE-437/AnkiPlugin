@@ -6,6 +6,7 @@ import json
 import urllib
 import threading
 import time
+import datetime
 
 # import the main window object (mw) from ankiqt
 from aqt import mw
@@ -47,6 +48,10 @@ class AnkiHub:
   username = ''
   sessionToken = ''
   deckCol = []
+  
+  local_file_name = 'ankihub.data'
+  default_early_time = "1800-04-19T03:35:52.868Z"
+  default_seperator = "="
 
   '''
   Initial entry point of function. Should be the only function called by global.
@@ -182,7 +187,7 @@ class AnkiHub:
   #       Callback functions and API calls.         #
   ###################################################
 
-  def getTransactions(self, gid):
+  def getTransactions(self, gid, lastSync="1800-04-19T03:35:52.868Z"):
     requestURL = self.url + '/api/decks/%s/transactions/' % gid
     request = Request(requestURL, json.dumps({'username' : self.username, 'sessionToken' : self.sessionToken}), {'Content-Type' : 'application/json'})
     try:
@@ -348,7 +353,6 @@ class AnkiHub:
             self.DECK_QUERIES[t["query"]](self, t)
         else:
             pass # uh oh, unsupported query
-    showInfo('about to reset?')
     mw.reset()
     
   def getAllDeckNames(self):
@@ -400,6 +404,24 @@ class AnkiHub:
     
     pass
 
+  def saveTime(self, gid):
+    current_data = ''
+    with open(self.local_file_name, "r") as f:
+      for line in f:
+        if gid not in line:
+          current_data += line
+    with open(self.local_file_name, "w") as f:
+      f.write(current_data)
+      f.write("{}{}{}".format(gid, self.default_seperator, datetime.datetime.utcnow()))
+      
+  def loadTime(self, gid):
+    with open(self.local_file_name, "a+") as f:
+      pass
+  
+    with open(self.local_file_name, "r") as f:
+      for line in f:
+        if gid in line:
+         return line.split(self.default_seperator)[1]
     
   '''
   Callback function for Sync button. Uses multithreading to process POST requests to /api/decks/
@@ -415,6 +437,7 @@ class AnkiHub:
         #syncThread.start()
         #loadThread.start()
       self.recursiveSync('Sync', deck)
+      #self.saveTime(deck['gid'])
       #except:
         #showInfo('Could not start sync thread')
     return syncDeckAction
@@ -500,6 +523,7 @@ class AnkiHub:
       return jsonResponse
     except HTTPError, e:
       if e.code == 400:
+        #lastSync = self.loadTime(deckCopy['gid'])
         transactions = self.getTransactions(deckCopy['gid'])
         self.processDeckTransactions(transactions)
         showInfo('Finished processing transactions')
