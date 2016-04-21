@@ -68,9 +68,9 @@ class AnkiHub:
   Destructor function to clean data when closing AnkiHub window.
   '''
   def terminate(self):
-    self.terminate()
     self.server.terminate()
     self.deckCol = []
+    self.terminate()
 
   ####################################################################################
   #  GUI setup methods. Creates the QT widget that holds all AnkiHub functionality.  #
@@ -458,7 +458,7 @@ class AnkiHub:
         self.username = jsonResponse['user']['username']
         self.sessionToken = jsonResponse['user']['sessionToken']
         showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
-        self.getSubscribeDecks(jsonResponse['user']['subscriptions'])
+        #self.getSubscribeDecks(jsonResponse['user']['subscriptions'])        #AARTHI COMMENT
         self.processDecks()
         mw.loading.close()
         self.createSettings()
@@ -475,11 +475,14 @@ class AnkiHub:
   def getSubscribeDecks(self, subs):
   
     for sub in subs:
-      requestURL = '%s/api/decks/%s?username=%s&sessionToken=%s' % (self.url, sub, self.username, self.sessionToken)
+      #requestURL = '%s/api/decks/%s?username=%s&sessionToken=%s' % (self.url, sub, self.username, self.sessionToken)  #AARTHI COMMENT
 
       try:
-        response = urlopen(requestURL)
-        jsonResponse = json.loads(response.read())
+        jsonResponse = self.server(getSubscribedDecks(subs))
+      
+        #THESE NEXT TWO COMMENTS ARE PART OF SECRET AARTHI TESTING
+        #response = urlopen(requestURL)
+        #jsonResponse = json.loads(response.read())
 
         # Uncomment this line to see data in retrieved deck
         #showInfo('Success! Result is ' + str(jsonResponse[0]))
