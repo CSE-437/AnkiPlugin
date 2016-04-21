@@ -6,8 +6,6 @@ AnkiHubServer = AnkiHub.AnkiHubServer
 configFileName = AnkiHub.configFileName
 cookieFileName = AnkiHub.cookieFileName
 
-import pickle
-
 from urllib2 import Request, urlopen, URLError, HTTPError
 from pprint import pprint
 import json
