@@ -456,7 +456,7 @@ class AnkiHub:
         self.username = jsonResponse['user']['username']
         self.sessionToken = jsonResponse['user']['sessionToken']
         showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
-        #self.getSubscribeDecks(jsonResponse['user']['subscriptions'])        #AARTHI COMMENT
+        self.getSubscribeDecks(jsonResponse['user']['subscriptions'])        #AARTHI COMMENT
         self.processDecks()
         mw.loading.close()
         self.createSettings()
@@ -476,7 +476,7 @@ class AnkiHub:
       #requestURL = '%s/api/decks/%s?username=%s&sessionToken=%s' % (self.url, sub, self.username, self.sessionToken)  #AARTHI COMMENT
 
       try:
-        jsonResponse = self.server(getSubscribedDecks(subs))
+        jsonResponse = self.server.getDeck(sub)
       
         #THESE NEXT TWO COMMENTS ARE PART OF SECRET AARTHI TESTING
         #response = urlopen(requestURL)

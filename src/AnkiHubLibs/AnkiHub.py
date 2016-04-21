@@ -21,7 +21,7 @@ class AnkiHubServer:
         self.cookie = cookie
         self.configDict = configDict
         me = self.whoami()
-        logFile = open('AnkiHubLog%s.txt', "a+")
+        logFile = open('AnkiHubLog.txt', "a+")
         if me.get('sessionToken') and me.get('username'):
             self.username= me['username']
             self.sessionToken = me['sessionToken']
