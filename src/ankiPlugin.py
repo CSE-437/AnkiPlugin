@@ -215,7 +215,7 @@ class AnkiHub:
   def getCID(self, id):
     return id.split(":")[2]
   def getCardNote(self, data):
-    card = mw.col.getCard(self.getCID(data["id"]))
+    card = mw.col.getCard(self.getCID(data["on"]))
     note = card.note(reload=True)
     return (card,note)
 
@@ -254,7 +254,7 @@ class AnkiHub:
   def processTransactions_GETACTIONS(self, data):
     pass
   def processTransactions_DELETE(self, data):
-    mw.col.remCards([self.getCID(data["id"])], notes=True)
+    mw.col.remCards([self.getCID(data["on"])], notes=True)
     mw.col.decks.flush()
 
   #untested with server
