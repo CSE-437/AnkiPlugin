@@ -1,7 +1,7 @@
 from AnkiHubLibs import webbrowser
 import sys
 sys.path.append("./AnkiHubLibs")
-import AnkiHub
+from AnkiHubLibs import AnkiHub
 AnkiHubServer = AnkiHub.AnkiHubServer
 configFileName = AnkiHub.configFileName
 cookieFileName = AnkiHub.cookieFileName
@@ -306,28 +306,26 @@ class AnkiHub:
     mw.col.decks.flush()
   #TO-DO: Update this to match Tyler's new card schema
   def processDeckTransactions_ADD(self, data):
-    showInfo(str(data))
-    for card in data["data"]["newCards"]:
+    for c in data["data"]["newCards"]:
         card = anki.cards.Card(mw.col)
         note = mw.col.newNote()
         # use front/back or notes?
-        note.fields[0] = card["front"]
-        note.fields[1] = card["back"]
-        for i in card["tags"]:
+        note.fields[0] = c["front"]
+        note.fields[1] = c["back"]
+        for i in c["tags"]:
             note.addTag(i)
         note.flush()
         # set CID?
         card.nid = note.id
         card.ord = 0 # what the hell is ord?
         card.did = self.getDID(data["on"])
-        card.due = mw.col._dueForDid(card.did, 1)
+        card.due = 1
         card.flush()
   #??
   def processDeckTransactions_REMOVE(self, data):
     mw.col.remCards([self.getCID(data["data"]["gid"])])
   #works
   def processDeckTransactions_RENAME(self, data):
-    showInfo(str(data))
     mw.col.decks.rename(mw.col.decks.get(self.getDID(data["on"])), data["data"]["name"])
   def processDeckTransactions_REDESC(self, data):
     pass
@@ -353,11 +351,9 @@ class AnkiHub:
     transactions.sort(cmp=compare)
     for t in transactions:
         if t["query"] in self.DECK_QUERIES:
-            showInfo(str(t['query']))
             self.DECK_QUERIES[t["query"]](self, t)
         else:
             pass # uh oh, unsupported query
-    showInfo('about to reset?')
     mw.reset()
 
   def getAllDeckNames(self):
@@ -491,11 +487,11 @@ class AnkiHub:
   '''
   def getSubscribeDecks(self, subs):
   
-    for sub in subs:
+    #for sub in subs:
       #requestURL = '%s/api/decks/%s?username=%s&sessionToken=%s' % (self.url, sub, self.username, self.sessionToken)  #AARTHI COMMENT
 
       try:
-        jsonResponse = self.server.getDeck(sub)
+        jsonResponse = self.server.getSubscribedDecks(subs)
       
         #THESE NEXT TWO COMMENTS ARE PART OF SECRET AARTHI TESTING
         #response = urlopen(requestURL)
@@ -531,6 +527,7 @@ class AnkiHub:
   def recursiveSync(self, requestFrom, deck):
     deckCopy = deck.copy()
     try:
+      
       jsonResponse = self.server.recursiveSync(requestFrom, deck)
       showInfo('%s Request Successful!' % requestFrom)
       return jsonResponse

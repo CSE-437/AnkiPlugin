@@ -31,7 +31,7 @@ class AnkiHubServer:
     def terminate(self):
         self.username = ''
         self.sessionToken = ''
-        logFile.close()
+        self.logFile.close()
         pickle.dump(self.configDict, open(configFileName, "wb+"))
         pickle.dump(self.cookie, open(cookieFileName, "wb+"))
 
@@ -112,12 +112,13 @@ class AnkiHubServer:
         deckCopy['children'] = []
 
         #to ignore all children, comment out the following for-loop
-        for childDeck in deck['children']:
-            childResponse = self.recursiveSync(requestFrom, childDeck)
-            deckCopy['children'].append(childResponse['gid'])
+        #for childDeck in deck['children']:
+        #    childResponse = self.recursiveSync(requestFrom, childDeck)
+        #    deckCopy['children'].append(childResponse['gid'])
 
         data_encoded = json.dumps(deckCopy)
         req = urllib2.Request('%s/api/decks'%self.url)
         req.add_header('cookie', self.cookie)
+        req.add_header('content-type', 'application/json')
         response = urllib2.urlopen(req, data_encoded)
         return json.loads(response.read())
