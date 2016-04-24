@@ -1,4 +1,10 @@
 from AnkiHubLibs import webbrowser
+import sys
+sys.path.append("./AnkiHubLibs")
+import AnkiHub
+AnkiHubServer = AnkiHub.AnkiHubServer
+configFileName = AnkiHub.configFileName
+cookieFileName = AnkiHub.cookieFileName
 
 from urllib2 import Request, urlopen, URLError, HTTPError
 from pprint import pprint
@@ -6,7 +12,8 @@ import json
 import urllib
 import threading
 import time
-import datetime
+import pickle
+import os
 
 # import the main window object (mw) from ankiqt
 from aqt import mw
@@ -43,15 +50,10 @@ class AnkiHub:
   '''
   Instance/global variables.
   '''
-  #url = 'http://localhost:3000'
-  url = 'http://ankihub.herokuapp.com'
+  deckCol = []
+  server = None
   username = ''
   sessionToken = ''
-  deckCol = []
-  
-  local_file_name = 'ankihub.data'
-  default_early_time = "1800-04-19T03:35:52.868Z"
-  default_seperator = "="
 
   '''
   Initial entry point of function. Should be the only function called by global.
@@ -64,9 +66,9 @@ class AnkiHub:
   Destructor function to clean data when closing AnkiHub window.
   '''
   def terminate(self):
-    self.username = ''
-    sessionToken = ''
+    self.server.terminate()
     self.deckCol = []
+    self.terminate()
 
   ####################################################################################
   #  GUI setup methods. Creates the QT widget that holds all AnkiHub functionality.  #
@@ -187,23 +189,25 @@ class AnkiHub:
   #       Callback functions and API calls.         #
   ###################################################
 
-  def getTransactions(self, gid, lastSync="1800-04-19T03:35:52.868Z"):
-    requestURL = self.url + '/api/decks/%s/transactions/' % gid
-    request = Request(requestURL, json.dumps({'username' : self.username, 'sessionToken' : self.sessionToken}), {'Content-Type' : 'application/json'})
+  def getTransactions(self, gid):
     try:
-      response = urlopen(request)
-      jsonResponse = json.loads(response.read())
+      jsonResponse = self.server.getTransactions(gid)
       return jsonResponse
 
     except HTTPError, e:
-      showInfo(str('Transaction Download Error: %d - %s' % (e.code, e.read())))
+      showInfo(str('Transaction Download Error: %d - %s' % (e.code, str(json.loads(e.read())))))
     except URLError, e:
-      showInfo('url error?')
       showInfo(str(e.args))
 
-  def uploadTranasactions(self):
+  def uploadTranasactions(self, gid, transactions):
     # GET request to ankihub.herokuapp.com/api/decks?name=deckName
-    print urllib2.urlopen("%s%s" % (url, "/api/decks?name=Default")).read()
+    try:
+        jsonResponse = self.server.postTransactions(gid, transations)
+    except HTTPError, e:
+        showInfo(str('Transaction Upload Error: %d - %s' % (e.code, str(json.loads(e.read())))))
+    except URLError, e:
+        showInfo(str(e.args))
+
     # Get JSON copy of local deck (processDeck)
     # Pass JSON from request and local copy of deck to transactionCalculator
     # POST request to transations endpoint
@@ -211,7 +215,7 @@ class AnkiHub:
   def getCID(self, id):
     return id.split(":")[2]
   def getCardNote(self, data):
-    card = mw.col.getCard(self.getCID(data["id"]))
+    card = mw.col.getCard(self.getCID(data["on"]))
     note = card.note(reload=True)
     return (card,note)
 
@@ -250,9 +254,9 @@ class AnkiHub:
   def processTransactions_GETACTIONS(self, data):
     pass
   def processTransactions_DELETE(self, data):
-    mw.col.remCards([self.getCID(data["id"])], notes=True)
+    mw.col.remCards([self.getCID(data["on"])], notes=True)
     mw.col.decks.flush()
-  
+
   #untested with server
   CARD_QUERIES = {"UPDATE":processTransactions_UPDATE, "aKEYWORDS":processTransactions_aKEYWORDS, "rKEYWORDS":processTransactions_rKEYWORDS, "cKEYWORDS":processTransactions_cKEYWORDS, "aNOTES":processTransactions_aNOTES, "rNOTES":processTransactions_rNOTES, "cNOTES":processTransactions_cNOTES, "aTAGS":processTransactions_aTAGS, "rTAGS":processTransactions_rTAGS, "cTAGS":processTransactions_cTAGS, "GETACTIONS":processTransactions_GETACTIONS, "DELETE":processTransactions_DELETE}
   def processTransactions(self, transactions):
@@ -264,30 +268,30 @@ class AnkiHub:
         else:
             pass # uh oh, unsupported query
     mw.reset()
-  
-  
+
+
   def getDID(self, gid):
     return gid.split(":")[1]
-  #??  
+  #??
   def processDeckTransactions_FORK(self, data):
     orig_did = self.getDID(data["on"])
     # orig_deck = mw.col.decks.get(orig_did)
     new_did = mw.col.decks.id(data["data"]["name"])
     new_deck = mw.col.decks.get(new_did)
-    
+
     for cid in mw.col.decks.cids(orig_did):
         card = mw.col.getCard(cid)
         note = card.note(reload=True)
         model = note.model()
         createNewModel = False # create new model?
-        
-        if createNewModel: 
+
+        if createNewModel:
             new_model = mw.col.models.copy(model) # models.copy saves
         new_note = copy.deepcopy(note)
         new_note.col = note.col
         new_note.id = timestampID(mw.col.db, "notes")
         new_note.guid = guid64()
-        if createNewModel: 
+        if createNewModel:
             new_note._model = new_model
             new_note.mid = new_model['id']
         new_note.flush()
@@ -340,8 +344,8 @@ class AnkiHub:
     pass
   def processDeckTransactions_REPUB(self, data):
     pass
-  
-  
+
+
   DECK_QUERIES = {"FORK":processDeckTransactions_FORK, "ADD":processDeckTransactions_ADD, "REMOVE":processDeckTransactions_REMOVE, "RENAME":processDeckTransactions_RENAME,"REDESC":processDeckTransactions_REDESC, "GETACTIONS":processDeckTransactions_GETACTIONS, "DELETE":processDeckTransactions_DELETE, "aKEYWORDS":processDeckTransactions_aKEYWORDS, "rKEYWORDS":processDeckTransactions_rKEYWORDS, "cKEYWORDS":processDeckTransactions_cKEYWORDS, "REPUB":processDeckTransactions_REPUB}
   def processDeckTransactions(self, transactions):
     # transactions is an array
@@ -353,76 +357,77 @@ class AnkiHub:
             self.DECK_QUERIES[t["query"]](self, t)
         else:
             pass # uh oh, unsupported query
+    showInfo('about to reset?')
     mw.reset()
-    
+
   def getAllDeckNames(self):
     decks = mw.col.decks.all()
     return "\n".join([i["name"] for i in decks])
-    
+
   def testTransactions(self):
     # basic transaction = {"query":"", "data":{}}
-    
+
     # # test deck rename
     # showInfo(self.getAllDeckNames())
     # showInfo(str(mw.col.decks.id("forked", create=False)))
     # transactions = [{"query":"RENAME", "data":{"gid":"joseph:1459643823643", "name":"renamed"}}]
-    
+
     # # test deck remove
     # cid = "joseph:1459643823643:" + str(mw.col.db.first("select * from cards where did = ?", 1459643823643)[0])
     # transactions = [{"query":"REMOVE", "data":{"id":cid}}]
-    
+
     # # test deck add
     # transactions = [{"query":"ADD", "data":{"gid":"joseph:1459643823643", "front":"this is the front", "back":"this_is_the_back", "tags":["one_tag","two_tag","three_tags"]}}]
-    
+
     # # test deck fork
     # transactions = [{"query":"FORK", "data":{"gid":"joseph:1459643823643", "name":"forked"}}]
     # showInfo(str(mw.col.decks.id("forked", create=False)))
-    
+
     # # test deck remove
     # transactions = [{"query":"DELETE", "data":{"gid":"joseph:1460136150946"}}]
-    
+
     # self.processDeckTransactions(transactions)
-    
-    
+
+
     # # test card update
     # showInfo(str(mw.col.decks.cids(1459643823643)[0]))
     # transactions = [{"query":"UPDATE", "data":{"id":"joseph:1460136150946:1460136040703", "front":"updated front", "back":"updated_back"}}]
-    
+
     # # test card aTags
     # transactions = [{"query":"aTAGS", "data":{"id":"joseph:1460136150946:1460136040703", "tags":["new_tag_1", "new_tag_2"]}}]
-    
+
     # # test card rTags
     # transactions = [{"query":"rTAGS", "data":{"id":"joseph:1460136150946:1460136040703", "tags":["new_tag_1", "new_tag_2"]}}]
-    
+
     # # test card cTags
     # transactions = [{"query":"cTAGS", "data":{"id":"joseph:1460136150946:1460136040703"}}]
-    
+
     # # test card delete
     # transactions = [{"query":"DELETE", "data":{"id":"joseph:1460136150946:1460138220929"}}]
-    
-    # self.processTransactions(transactions)
-    
-    pass
 
-  def saveTime(self, gid):
-    current_data = ''
-    with open(self.local_file_name, "r") as f:
-      for line in f:
-        if gid not in line:
-          current_data += line
-    with open(self.local_file_name, "w") as f:
-      f.write(current_data)
-      f.write("{}{}{}".format(gid, self.default_seperator, datetime.datetime.utcnow()))
-      
-  def loadTime(self, gid):
-    with open(self.local_file_name, "a+") as f:
-      pass
-  
-    with open(self.local_file_name, "r") as f:
-      for line in f:
-        if gid in line:
-         return line.split(self.default_seperator)[1]
+    # self.processTransactions(transactions)
+
+    pass
     
+  def saveTime(self, gid):		
+    current_data = ''		
+    with open(self.local_file_name, "r") as f:		
+      for line in f:		
+        if gid not in line:		
+          current_data += line		
+    with open(self.local_file_name, "w") as f:		
+      f.write(current_data)		
+      f.write("{}{}{}".format(gid, self.default_seperator, datetime.datetime.utcnow()))		
+      		
+  def loadTime(self, gid):		
+    with open(self.local_file_name, "a+") as f:		
+      pass		
+  		
+    with open(self.local_file_name, "r") as f:		
+      for line in f:		
+        if gid in line:		
+         return line.split(self.default_seperator)[1]
+
   '''
   Callback function for Sync button. Uses multithreading to process POST requests to /api/decks/
   '''
@@ -430,14 +435,13 @@ class AnkiHub:
     # Temp Call to getTrans
     def syncDeckAction():
       #In order for transactions to work, threading must be turned off
-      
+
       #syncThread = threading.Thread(target=self.recursiveSync, args=('Sync', deck))
       #loadThread = threading.Thread(target=self.createSyncScreen, args=(deck['name'], syncThread))
       #try:
         #syncThread.start()
         #loadThread.start()
       self.recursiveSync('Sync', deck)
-      #self.saveTime(deck['gid'])
       #except:
         #showInfo('Could not start sync thread')
     return syncDeckAction
@@ -460,19 +464,18 @@ class AnkiHub:
 
       self.username = mw.login.username.text()
       password = mw.login.password.text()
-      loginJson = {'username' : self.username, 'password' : password}
-
-      # Sends POST request for login or signup
-      requestURL = self.url + '/api/users/' + endpoint
-      req = Request(requestURL, json.dumps(loginJson), {'Content-Type' : 'application/json'})
 
       try:
-        response = urlopen(req)
-        jsonResponse = json.loads(response.read())
+        jsonResponse = None
+        if 'login' in endpoint:
+            jsonResponse = self.server.login(self.username, password)
+        else:
+            jsonResponse = self.server.signup(self.username, password)
         mw.login.close()
         self.username = jsonResponse['user']['username']
         self.sessionToken = jsonResponse['user']['sessionToken']
         showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
+        self.getSubscribeDecks(jsonResponse['user']['subscriptions'])        #AARTHI COMMENT
         self.processDecks()
         mw.loading.close()
         self.createSettings()
@@ -482,16 +485,21 @@ class AnkiHub:
         showInfo(str(e.args))
     return connectAction
 
+
   '''
   GET request to get decks that a user is subscribed to.
   '''
   def getSubscribeDecks(self, subs):
+  
     for sub in subs:
-      requestURL = self.url + '/api/decks/'
+      #requestURL = '%s/api/decks/%s?username=%s&sessionToken=%s' % (self.url, sub, self.username, self.sessionToken)  #AARTHI COMMENT
 
       try:
-        response = urlopen(requestURL+sub)
-        jsonResponse = json.loads(response.read())
+        jsonResponse = self.server.getDeck(sub)
+      
+        #THESE NEXT TWO COMMENTS ARE PART OF SECRET AARTHI TESTING
+        #response = urlopen(requestURL)
+        #jsonResponse = json.loads(response.read())
 
         # Uncomment this line to see data in retrieved deck
         #showInfo('Success! Result is ' + str(jsonResponse[0]))
@@ -505,20 +513,25 @@ class AnkiHub:
   '''
   Allows for general requests (both GET and POST) to be made asynchronously when used as target for threads. Currently only used for Sync.
   '''
-  def recursiveSync(self, requestFrom, deck):
-    requestURL = self.url + '/api/decks/'
-    deckCopy = deck.copy()
-    deckCopy['children'] = []
-    
-    #to ignore all children, comment out the following for-loop
-    for childDeck in deck['children']:
-      childResponse = self.recursiveSync(requestFrom, childDeck)
-      deckCopy['children'].append(childResponse['gid'])
-      
-    request = Request(requestURL, json.dumps(deckCopy), {'Content-Type' : 'application/json'})
+  def processRequest(self, requestFrom, request):
     try:
       response = urlopen(request)
       jsonResponse = json.loads(response.read())
+      showInfo('%s Request Successful!' % requestFrom)
+    except HTTPError, e:
+      showInfo(str('%s Error: %d - %s' % (requestFrom, e.code, e.read())))
+      print(str('%s Error: %d - %s' % (requestFrom, e.code, e.read())))
+    except URLError, e:
+      showInfo(str(e.args))
+      print(str(e.args))
+
+  '''
+  Allows for general requests (both GET and POST) to be made asynchronously when used as target for threads. Currently only used for Sync.
+  '''
+  def recursiveSync(self, requestFrom, deck):
+    deckCopy = deck.copy()
+    try:
+      jsonResponse = self.server.recursiveSync(requestFrom, deck)
       showInfo('%s Request Successful!' % requestFrom)
       return jsonResponse
     except HTTPError, e:
@@ -531,7 +544,6 @@ class AnkiHub:
     except URLError, e:
       showInfo(str(e.args))
       return {'gid' : 'error'}
-      
   '''
   CSV to Anki deck importer. If the note type has multiple card types,
   multiple cards will automatically be generated for each note.
@@ -560,6 +572,7 @@ class AnkiHub:
 
     mw.col.reset()
     mw.reset()
+
 
   '''
   Add new custom note type, card type, and templates (collectively a "model").
@@ -689,9 +702,18 @@ def compare(trans1, trans2):
   else:
     return 0
 
-
 QCoreApplication.setAttribute(Qt.AA_X11InitThreads)
 ankiHub = AnkiHub()
+if os.path.isfile(configFileName):
+    cD = pickle.load(open(configFileName, "rb"))
+else:
+    cD = {}
+if os.path.isfile(cookieFileName):
+    cook = pickle.load(open(cookieFileName, "rb"))
+    ankiHub.server = AnkiHubServer(cD, cook)
+else:
+    ankiHub.server = AnkiHubServer(cD)
+
 action = QAction('AnkiHub', mw)
 mw.connect(action, SIGNAL('triggered()'), ankiHub.initialize)
 mw.form.menuTools.addAction(action)
