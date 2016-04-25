@@ -16,22 +16,23 @@ class AnkiHubServer:
     sessionToken = ''
     configDict = dict()
     cookie = None
-    logFile = None
+    #logFile = None
     def __init__(self, configDict, cookie = Cookie.SimpleCookie()):
         self.cookie = cookie
         self.configDict = configDict
         me = self.whoami()
-        logFile = open('AnkiHubLog.txt', "a+")
+        #logFile = open('AnkiHubLog.txt', "a+")
         if me.get('sessionToken') and me.get('username'):
             self.username= me['username']
             self.sessionToken = me['sessionToken']
 
     def log(self, str):
-        logFile.write("[%s]: %s"%(datetime.datetime.now(), str))
+        #logFile.write("[%s]: %s"%(datetime.datetime.now(), str))
+        pass
     def terminate(self):
         self.username = ''
         self.sessionToken = ''
-        self.logFile.close()
+        #self.logFile.close()
         pickle.dump(self.configDict, open(configFileName, "wb+"))
         pickle.dump(self.cookie, open(cookieFileName, "wb+"))
 
@@ -39,6 +40,11 @@ class AnkiHubServer:
         req = urllib2.Request('%s/api/decks'%(self.url))
         req.add_header('cookie', self.cookie)
         self.log(str(urllib2.urlopen(req, deckJson).read()))
+        
+    def getDeck(self, gid):
+      req = urllib2.Request('%s/api/decks/%s' %(self.url,gid))
+      req.add_header('cookie', self.cookie)
+      return json.loads(urllib2.urlopen(req).read())
 
     def getTransactions(self, gid):
         req = urllib2.Request('%s/api/decks/%s/transactions' %(self.url,gid))
