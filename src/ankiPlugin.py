@@ -506,17 +506,18 @@ class AnkiHub:
         #showInfo('Success! Result is ' + str(jsonResponse[0]))
         if len(jsonResponse) > 0:
           deck = jsonResponse[0]
-          showInfo(deck['name'])
+          #showInfo(deck['name'])
           cards = deck['cards']
           toFile = ''
           for card in cards:
-            toFile = '%s %s; %s;' % (toFile, card['notes']['Front'], card['notes']['Back'])
-          showInfo(toFile)
+            toFile += '%s; %s;\n' % (card['notes']['Front'], card['notes']['Back'])
+          #showInfo(toFile)
           directory = os.path.dirname(__file__)
           filename = directory + '\import.txt'
-          file = open(filename, 'r+')
+          file = open(filename, 'w')
           #file = open('C:\\Users\\aarun\\OneDrive\\Documents\\Anki\\addons\\import.txt', 'r+')
           file.write(toFile)
+          file.close()
           self.importDeckFromCSV(filename, deck['name'])
           #self.deckCol.append(deck)    # Adds retrieved deck to internal AnkiHub Deck Collection
       except HTTPError, e:
@@ -639,9 +640,9 @@ class AnkiHub:
     mw.col.decks.save(deck)
 
     # Assign new deck to model
-    #mw.col.models.setCurrent(model)
-    #model['did'] = did
-    #mw.col.models.save(model)
+    mw.col.models.setCurrent(model)
+    model['did'] = did
+    mw.col.models.save(model)
 
     # import into the collection
     ti = TextImporter(mw.col, filename)
