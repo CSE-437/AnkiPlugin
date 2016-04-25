@@ -1,7 +1,7 @@
 import urllib2
 import urllib
 import Cookie
-import pickle
+#import pickle
 import json
 import datetime
 
@@ -33,8 +33,8 @@ class AnkiHubServer:
         self.username = ''
         self.sessionToken = ''
         #self.logFile.close()
-        pickle.dump(self.configDict, open(configFileName, "wb+"))
-        pickle.dump(self.cookie, open(cookieFileName, "wb+"))
+        #pickle.dump(self.configDict, open(configFileName, "wb+"))
+        #pickle.dump(self.cookie, open(cookieFileName, "wb+"))
 
     def uploadDeck(self, deckJson):
         req = urllib2.Request('%s/api/decks'%(self.url))

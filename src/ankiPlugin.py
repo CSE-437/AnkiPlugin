@@ -12,7 +12,7 @@ import json
 import urllib
 import threading
 import time
-import pickle
+#import pickle
 import os
 
 # import the main window object (mw) from ankiqt
@@ -506,16 +506,14 @@ class AnkiHub:
         #showInfo('Success! Result is ' + str(jsonResponse[0]))
         if len(jsonResponse) > 0:
           deck = jsonResponse[0]
-          #showInfo(deck['name'])
+          showInfo(deck['name'] + ' ' + str(deck['cids']))
           cards = deck['cards']
           toFile = ''
           for card in cards:
             toFile += '%s; %s;\n' % (card['notes']['Front'], card['notes']['Back'])
-          #showInfo(toFile)
           directory = os.path.dirname(__file__)
           filename = directory + '\import.txt'
           file = open(filename, 'w')
-          #file = open('C:\\Users\\aarun\\OneDrive\\Documents\\Anki\\addons\\import.txt', 'r+')
           file.write(toFile)
           file.close()
           self.importDeckFromCSV(filename, deck['name'])
@@ -784,16 +782,15 @@ def compare(trans1, trans2):
 
 QCoreApplication.setAttribute(Qt.AA_X11InitThreads)
 ankiHub = AnkiHub()
-if os.path.isfile(configFileName):
+#if os.path.isfile(configFileName):
     #cD = pickle.load(open(configFileName, "rb"))
-    cD = {}
-else:
-    cD = {}
-if os.path.isfile(cookieFileName):
-    cook = pickle.load(open(cookieFileName, "rb"))
-    ankiHub.server = AnkiHubServer(cD, cook)
-else:
-    ankiHub.server = AnkiHubServer(cD)
+#else:
+cD = {}
+#if os.path.isfile(cookieFileName):
+#    cook = pickle.load(open(cookieFileName, "rb"))
+#    ankiHub.server = AnkiHubServer(cD, cook)
+#else:
+ankiHub.server = AnkiHubServer(cD)
 
 action = QAction('AnkiHub', mw)
 mw.connect(action, SIGNAL('triggered()'), ankiHub.initialize)
