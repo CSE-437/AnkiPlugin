@@ -505,7 +505,20 @@ class AnkiHub:
         # Uncomment this line to see data in retrieved deck
         #showInfo('Success! Result is ' + str(jsonResponse[0]))
         if len(jsonResponse) > 0:
-          self.deckCol.append(jsonResponse[0])    # Adds retrieved deck to internal AnkiHub Deck Collection
+          deck = jsonResponse[0]
+          showInfo(deck['name'])
+          cards = deck['cards']
+          toFile = ''
+          for card in cards:
+            toFile = '%s %s; %s;' % (toFile, card['notes']['Front'], card['notes']['Back'])
+          showInfo(toFile)
+          directory = os.path.dirname(__file__)
+          filename = directory + '\import.txt'
+          file = open(filename, 'r+')
+          #file = open('C:\\Users\\aarun\\OneDrive\\Documents\\Anki\\addons\\import.txt', 'r+')
+          file.write(toFile)
+          self.importDeckFromCSV(filename, deck['name'])
+          #self.deckCol.append(deck)    # Adds retrieved deck to internal AnkiHub Deck Collection
       except HTTPError, e:
         showInfo(str('Subscription Download Error: %d - %s' % (e.code, str(json.loads(e.read())))))
       except URLError, e:
@@ -611,25 +624,27 @@ class AnkiHub:
   CSV to Anki deck importer. If the note type has multiple card types,
   multiple cards will automatically be generated for each note.
   '''
-  def importDeckFromCSV(self):
-    file = r"C:\Users\aarun\OneDrive\Documents\Anki\addons\import.txt"
+  def importDeckFromCSV(self, filename, name):
+    #file = r"C:\Users\aarun\OneDrive\Documents\Anki\addons\import.txt"
+   
     # select deck
-    did = mw.col.decks.id("ImportDeck")
-    model = self.addNewModel()
+    did = mw.col.decks.id(name)
+    #model = self.addNewModel()
 
     mw.col.decks.select(did)
     # set note type for deck
+    model = mw.col.models.byName("Basic")
     deck = mw.col.decks.get(did)
     deck['mid'] = model['id']
     mw.col.decks.save(deck)
 
     # Assign new deck to model
-    mw.col.models.setCurrent(model)
-    model['did'] = did
-    mw.col.models.save(model)
+    #mw.col.models.setCurrent(model)
+    #model['did'] = did
+    #mw.col.models.save(model)
 
     # import into the collection
-    ti = TextImporter(mw.col, file)
+    ti = TextImporter(mw.col, filename)
     ti.initMapping()
     ti.run()
 
@@ -659,6 +674,7 @@ class AnkiHub:
     models.addTemplate(m, t)
     models.add(m)
     return m
+    
 
   #################################################
   #         Algorithms to serialize JSONs.        #
@@ -768,7 +784,8 @@ def compare(trans1, trans2):
 QCoreApplication.setAttribute(Qt.AA_X11InitThreads)
 ankiHub = AnkiHub()
 if os.path.isfile(configFileName):
-    cD = pickle.load(open(configFileName, "rb"))
+    #cD = pickle.load(open(configFileName, "rb"))
+    cD = {}
 else:
     cD = {}
 if os.path.isfile(cookieFileName):
