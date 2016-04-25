@@ -68,7 +68,7 @@ class AnkiHub:
   def terminate(self):
     self.server.terminate()
     self.deckCol = []
-    self.terminate()
+    #self.terminate()
 
   ####################################################################################
   #  GUI setup methods. Creates the QT widget that holds all AnkiHub functionality.  #
@@ -100,11 +100,11 @@ class AnkiHub:
 
     mw.login.signup = QPushButton('Register', mw.login)
     mw.login.signup.move(100,200)
-    mw.login.signup.clicked.connect(self.connect('signup/'))
+    mw.login.signup.clicked.connect(self.connect('Signup'))
 
     mw.login.submit = QPushButton('Login', mw.login)
     mw.login.submit.move(300,200)
-    mw.login.submit.clicked.connect(self.connect('login/'))
+    mw.login.submit.clicked.connect(self.connect('Login'))
 
     mw.login.show()
 
@@ -129,6 +129,11 @@ class AnkiHub:
     mw.settings.download = QPushButton('Download a Deck', mw.settings)
     mw.settings.download.clicked.connect(self.importDeck())
     mw.settings.download.move(300, 460)
+    
+    # Refresh info to include new local changes
+    mw.settings.refresh = QPushButton('Refresh', mw.settings)
+    mw.settings.refresh.clicked.connect(self.refresh())
+    mw.settings.refresh.move(600, 460)
 
     mw.settings.show()
 
@@ -457,6 +462,18 @@ class AnkiHub:
     return redirectAction
 
   '''
+  Callback function to refresh settings window
+  '''
+  def refresh(self):
+    def refreshAction():
+      self.deckCol = []
+      self.processDecks()
+      mw.loading.close()
+      self.createSettings()
+    return refreshAction
+      
+  
+  '''
   Callback function that makes POST requests to /api/users/login/ or /api/users/signup/
   '''
   def connect(self, endpoint):
@@ -468,7 +485,7 @@ class AnkiHub:
 
       try:
         jsonResponse = None
-        if 'login' in endpoint:
+        if 'Login' in endpoint:
             jsonResponse = self.server.login(self.username, password)
         else:
             jsonResponse = self.server.signup(self.username, password)
@@ -476,12 +493,12 @@ class AnkiHub:
         self.username = jsonResponse['user']['username']
         self.sessionToken = jsonResponse['user']['sessionToken']
         showInfo('Success! Logged in as ' + jsonResponse['user']['username'])
-        self.getSubscribeDecks(jsonResponse['user']['subscriptions'])        #AARTHI COMMENT
+        self.getSubscribeDecks(jsonResponse['user']['subscriptions'])
         self.processDecks()
         mw.loading.close()
         self.createSettings()
       except HTTPError, e:
-        showInfo(str('Login Error: %d - %s' % (e.code, json.loads(e.read()))))
+        showInfo(str('%s Error: %d - %s' % (endpoint, e.code, json.loads(e.read()))))
       except URLError, e:
         showInfo(str(e.args))
     return connectAction
@@ -493,20 +510,13 @@ class AnkiHub:
   def getSubscribeDecks(self, subs):
   
     for sub in subs:
-      #requestURL = '%s/api/decks/%s?username=%s&sessionToken=%s' % (self.url, sub, self.username, self.sessionToken)  #AARTHI COMMENT
-
       try:
         jsonResponse = self.server.getDeck(sub)
-      
-        #THESE NEXT TWO COMMENTS ARE PART OF SECRET AARTHI TESTING
-        #response = urlopen(requestURL)
-        #jsonResponse = json.loads(response.read())
 
         # Uncomment this line to see data in retrieved deck
         #showInfo('Success! Result is ' + str(jsonResponse[0]))
         if len(jsonResponse) > 0:
           deck = jsonResponse[0]
-          showInfo(deck['name'] + ' ' + str(deck['cids']))
           cards = deck['cards']
           toFile = ''
           for card in cards:
@@ -614,7 +624,7 @@ class AnkiHub:
 
         #self.importDeckFromCSV()
       except HTTPError, e:
-        showInfo(str('Login Error: %d - %s' % (e.code, json.loads(e.read()))))
+        showInfo(str('Deck Download Error: %d - %s' % (e.code, json.loads(e.read()))))
       except URLError, e:
         showInfo(str(e.args))
     return downloadAction
