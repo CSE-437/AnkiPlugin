@@ -128,12 +128,12 @@ class AnkiHub:
     # Deck download
     mw.settings.download = QPushButton('Download a Deck', mw.settings)
     mw.settings.download.clicked.connect(self.importDeck())
-    mw.settings.download.move(300, 460)
+    mw.settings.download.move(200, 460)
     
     # Refresh info to include new local changes
     mw.settings.refresh = QPushButton('Refresh', mw.settings)
     mw.settings.refresh.clicked.connect(self.refresh())
-    mw.settings.refresh.move(600, 460)
+    mw.settings.refresh.move(650, 460)
 
     mw.settings.show()
 
@@ -806,9 +806,9 @@ action = QAction('AnkiHub', mw)
 mw.connect(action, SIGNAL('triggered()'), ankiHub.initialize)
 mw.form.menuTools.addAction(action)
 
-action = QAction("AnkiHub Deck Import", mw)
-mw.connect(action, SIGNAL("triggered()"), ankiHub.importDeckFromCSV)
-mw.form.menuTools.addAction(action)
+#action = QAction("AnkiHub Deck Import", mw)
+#mw.connect(action, SIGNAL("triggered()"), ankiHub.importDeckFromCSV)
+#mw.form.menuTools.addAction(action)
 
 #action = QAction('Test transactions', mw)
 #mw.connect(action, SIGNAL('triggered()'), ankiHub.testTransactions)
